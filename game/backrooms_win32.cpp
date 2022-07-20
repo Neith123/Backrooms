@@ -12,10 +12,29 @@ struct game_state
 {
     HINSTANCE Instance;
     HWND WindowHandle;
+
+    platform_dynamic_lib InputLibrary;
+    platform_dynamic_lib AudioLibrary;
 };
 
 platform_config PlatformConfiguration;
 game_state State;
+
+void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path)
+{
+    Library->InternalHandle = LoadLibraryA(Path);
+    Library->Path = Path;    
+}
+
+void PlatformDLLExit(platform_dynamic_lib* Library)
+{
+    FreeLibrary((HMODULE)Library->InternalHandle);
+}
+
+void* PlatformDLLGet(platform_dynamic_lib* Library, const char* FunctionName)
+{
+    return GetProcAddress((HMODULE)Library->InternalHandle, FunctionName);
+}
 
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 {
@@ -43,28 +62,37 @@ void Win32Create(HINSTANCE Instance)
     PlatformConfiguration.Height = GAME_DEFAULT_HEIGHT;
     State.Instance = Instance;
 
-    WNDCLASSA WindowClass = {};
-    WindowClass.lpfnWndProc = WindowProc;
-    WindowClass.hInstance = Instance;
-    WindowClass.lpszClassName = GAME_WINDOW_CLASS_NAME;
-    WindowClass.hbrBackground = (HBRUSH)COLOR_WINDOW;
-    WindowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    RegisterClassA(&WindowClass);
+    CODE_BLOCK("DLL Loading")
+    {
+        PlatformDLLInit(&State.InputLibrary, "xinput1_4.dll");
+        PlatformDLLInit(&State.AudioLibrary, "xaudio2_9.dll");
+    }
 
-    State.WindowHandle = CreateWindowA(WindowClass.lpszClassName, 
-                                       GAME_WINDOW_TITLE, 
-                                       WS_OVERLAPPEDWINDOW, 
-                                       CW_USEDEFAULT, 
-                                       CW_USEDEFAULT, 
-                                       PlatformConfiguration.Width,
-                                       PlatformConfiguration.Height, 
-                                       NULL, 
-                                       NULL, 
-                                       Instance,
-                                       NULL);
+    CODE_BLOCK("Window Creation")
+    {
+        WNDCLASSA WindowClass = {};
+        WindowClass.lpfnWndProc = WindowProc;
+        WindowClass.hInstance = Instance;
+        WindowClass.lpszClassName = GAME_WINDOW_CLASS_NAME;
+        WindowClass.hbrBackground = (HBRUSH)COLOR_WINDOW;
+        WindowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+        RegisterClassA(&WindowClass);
 
-    ShowWindow(State.WindowHandle, SW_SHOW);
-    UpdateWindow(State.WindowHandle);
+        State.WindowHandle = CreateWindowA(WindowClass.lpszClassName, 
+                                           GAME_WINDOW_TITLE, 
+                                           WS_OVERLAPPEDWINDOW, 
+                                           CW_USEDEFAULT, 
+                                           CW_USEDEFAULT, 
+                                           PlatformConfiguration.Width,
+                                           PlatformConfiguration.Height, 
+                                           NULL, 
+                                           NULL, 
+                                           Instance,
+                                           NULL);
+
+        ShowWindow(State.WindowHandle, SW_SHOW);
+        UpdateWindow(State.WindowHandle);
+    }
 }
 
 void Win32Update()
@@ -78,6 +106,9 @@ void Win32Update()
 
 void Win32Destroy()
 {
+    PlatformDLLExit(&State.AudioLibrary);
+    PlatformDLLExit(&State.InputLibrary);
+
     DestroyWindow(State.WindowHandle);
 }
 

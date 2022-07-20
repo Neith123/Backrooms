@@ -10,4 +10,15 @@ struct platform_config
     i32 Height;
 };
 
+struct platform_dynamic_lib
+{
+    void* InternalHandle;
+    const char* Path;
+};
+
 extern platform_config PlatformConfiguration;
+
+// NOTE(milo): DLL
+void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);
+void PlatformDLLExit(platform_dynamic_lib* Library);
+void* PlatformDLLGet(platform_dynamic_lib* Library, const char* FunctionName);
