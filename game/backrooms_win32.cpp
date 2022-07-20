@@ -132,6 +132,8 @@ void Win32Create(HINSTANCE Instance)
             if (!XInputGetBatteryInformationProc) {
                 LogCritical("Failed to load XInputGetBatteryInformation function!");
             }
+
+            LogInfo("Loaded xinput1_4.dll");
         }
 
         CODE_BLOCK("XAudio2")
@@ -142,6 +144,8 @@ void Win32Create(HINSTANCE Instance)
             if (!XAudio2CreateProc) {
                 LogCritical("Failed to load XAudio2Create function!");
             }
+
+            LogInfo("Loaded xaudio2_9.dll");
         }
     }
 }
