@@ -18,6 +18,9 @@ struct platform_dynamic_lib
 
 extern platform_config PlatformConfiguration;
 
+// NOTE(milo): Debug tools
+void PlatformMessageBox(const char* Message, bool Error);
+
 // NOTE(milo): DLL
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);
 void PlatformDLLExit(platform_dynamic_lib* Library);

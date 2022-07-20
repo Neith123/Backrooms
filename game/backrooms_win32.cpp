@@ -1,6 +1,7 @@
 #include <Windows.h>
 
 #include "backrooms_platform.h"
+#include "backrooms_logger.h"
 
 // NOTE(milo): These should be loaded from file.
 #define GAME_WINDOW_CLASS_NAME "GameWindowClass"
@@ -20,15 +21,23 @@ struct game_state
 platform_config PlatformConfiguration;
 game_state State;
 
+void PlatformMessageBox(const char* Message, bool Error)
+{
+    MessageBoxA(NULL, Message, Error ? "Error!" : "Message Box", MB_OK | (Error ? MB_ICONERROR : MB_ICONINFORMATION));
+}
+
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path)
 {
     Library->InternalHandle = LoadLibraryA(Path);
+    if (!Library->InternalHandle)
+        LogCritical("Failed to load dynamic library (%s)", Path);
     Library->Path = Path;    
 }
 
 void PlatformDLLExit(platform_dynamic_lib* Library)
 {
-    FreeLibrary((HMODULE)Library->InternalHandle);
+    if (Library->InternalHandle)
+        FreeLibrary((HMODULE)Library->InternalHandle);
 }
 
 void* PlatformDLLGet(platform_dynamic_lib* Library, const char* FunctionName)
@@ -62,12 +71,6 @@ void Win32Create(HINSTANCE Instance)
     PlatformConfiguration.Height = GAME_DEFAULT_HEIGHT;
     State.Instance = Instance;
 
-    CODE_BLOCK("DLL Loading")
-    {
-        PlatformDLLInit(&State.InputLibrary, "xinput1_4.dll");
-        PlatformDLLInit(&State.AudioLibrary, "xaudio2_9.dll");
-    }
-
     CODE_BLOCK("Window Creation")
     {
         WNDCLASSA WindowClass = {};
@@ -89,9 +92,18 @@ void Win32Create(HINSTANCE Instance)
                                            NULL, 
                                            Instance,
                                            NULL);
+        if (!State.WindowHandle) {
+            LogCritical("Failed to create window!");
+        }
 
         ShowWindow(State.WindowHandle, SW_SHOW);
         UpdateWindow(State.WindowHandle);
+    }
+
+    CODE_BLOCK("DLL Loading")
+    {
+        PlatformDLLInit(&State.InputLibrary, "xinput1_4.dll");
+        PlatformDLLInit(&State.AudioLibrary, "xaudio2_9.dll");
     }
 }
 
