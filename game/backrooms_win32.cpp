@@ -1,4 +1,6 @@
 #include <Windows.h>
+#include <Xinput.h>
+#include <xaudio2.h>
 
 #include "backrooms_platform.h"
 #include "backrooms_logger.h"
@@ -8,6 +10,16 @@
 #define GAME_WINDOW_TITLE "Voyage"
 #define GAME_DEFAULT_WIDTH 1280
 #define GAME_DEFAULT_HEIGHT 720
+
+typedef DWORD (WINAPI* PFN_XINPUT_GET_STATE)(DWORD dwUserIndex, XINPUT_STATE* pState);
+typedef DWORD (WINAPI* PFN_XINPUT_SET_STATE)(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration);
+typedef DWORD (WINAPI* PFN_XINPUT_GET_BATTERY_INFORMATION)(DWORD dwUserIndex, BYTE devType, XINPUT_BATTERY_INFORMATION* pBatteryInformation);
+typedef HRESULT (WINAPI* PFN_XAUDIO2_CREATE)(IXAudio2** ppXAudio2, UINT32 Flags, XAUDIO2_PROCESSOR XAudio2Processor);
+
+PFN_XINPUT_GET_STATE XInputGetStateProc;
+PFN_XINPUT_SET_STATE XInputSetStateProc;
+PFN_XINPUT_GET_BATTERY_INFORMATION XInputGetBatteryInformationProc;
+PFN_XAUDIO2_CREATE XAudio2CreateProc;
 
 struct game_state
 {
@@ -102,8 +114,35 @@ void Win32Create(HINSTANCE Instance)
 
     CODE_BLOCK("DLL Loading")
     {
-        PlatformDLLInit(&State.InputLibrary, "xinput1_4.dll");
-        PlatformDLLInit(&State.AudioLibrary, "xaudio2_9.dll");
+        CODE_BLOCK("XInput")
+        {
+            PlatformDLLInit(&State.InputLibrary, "xinput1_4.dll");
+
+            XInputGetStateProc = (PFN_XINPUT_GET_STATE)PlatformDLLGet(&State.InputLibrary, "XInputGetState");
+            if (!XInputGetStateProc) {
+                LogCritical("Failed to load XInputGetState function!");
+            }
+
+            XInputSetStateProc = (PFN_XINPUT_SET_STATE)PlatformDLLGet(&State.InputLibrary, "XInputSetState");
+            if (!XInputGetStateProc) {
+                LogCritical("Failed to load XInputSetState function!");
+            }
+
+            XInputGetBatteryInformationProc = (PFN_XINPUT_GET_BATTERY_INFORMATION)PlatformDLLGet(&State.InputLibrary, "XInputGetBatteryInformation");
+            if (!XInputGetBatteryInformationProc) {
+                LogCritical("Failed to load XInputGetBatteryInformation function!");
+            }
+        }
+
+        CODE_BLOCK("XAudio2")
+        {
+            PlatformDLLInit(&State.AudioLibrary, "xaudio2_9.dll");
+
+            XAudio2CreateProc = (PFN_XAUDIO2_CREATE)PlatformDLLGet(&State.AudioLibrary, "XAudio2Create");
+            if (!XAudio2CreateProc) {
+                LogCritical("Failed to load XAudio2Create function!");
+            }
+        }
     }
 }
 
