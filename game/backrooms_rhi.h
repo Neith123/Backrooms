@@ -19,6 +19,45 @@ enum rhi_buffer_bind
     BufferBind_Compute
 };
 
+enum rhi_fill_mode
+{
+    FillMode_Fill,
+    FillMode_Line
+};
+
+enum rhi_cull_mode
+{
+    CullMode_None,
+    CullMode_Front,
+    CullMode_Back
+};
+
+enum rhi_comp_op
+{
+    CompareOP_Never,
+    CompareOP_Less,
+    CompareOP_Equal,
+    CompareOP_LessEqual,
+    CompareOP_Greater,
+    CompareOP_NotEqual,
+    CompareOP_GreaterEqual,
+    CompareOP_Always
+};
+
+struct rhi_material_config
+{
+    rhi_fill_mode FillMode;
+    rhi_cull_mode CullMode;
+    rhi_comp_op CompareOP;
+    bool FrontFaceCCW;
+};
+
+struct rhi_material
+{
+    void* Internal;
+    rhi_material_config Config;
+};  
+
 struct rhi_buffer
 {
     void* Internal;
@@ -30,6 +69,7 @@ struct rhi_shader
     void* Internal;
 };
 
+// NOTE(milo): Video
 void VideoInit(void* WindowHandle);
 void VideoExit();
 void VideoPresent();
@@ -39,14 +79,20 @@ void VideoBegin();
 void VideoDraw(u32 Count, u32 Start);
 void VideoDrawIndexed(u32 Count, u32 Start);
 
+// NOTE(milo): Buffer
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage);
 void BufferFree(rhi_buffer* Buffer);
 void BufferUpload(rhi_buffer* Buffer, void* Data);
 void BufferBindVertex(rhi_buffer* Buffer);
 void BufferBindIndex(rhi_buffer* Buffer);
 void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_buffer_bind Bind);
-// TODO(milo): Storage buffer
 
+// NOTE(milo): Shader
 void ShaderInit(rhi_shader* Shader, const char* V = NULL, const char* P = NULL, const char* C = NULL);
 void ShaderFree(rhi_shader* Shader);
 void ShaderBind(rhi_shader* Shader);
+
+// NOTE(milo): Material
+void MaterialInit(rhi_material* Material, rhi_material_config Config);
+void MaterialFree(rhi_material* Material);
+void MaterialBind(rhi_material* Material);

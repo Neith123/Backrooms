@@ -117,12 +117,13 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
             if (VideoReady()) {
                 VideoResize((u32)LOWORD(LParam), (u32)HIWORD(LParam));
             }
+            GameResize((i32)LOWORD(LParam), (i32)HIWORD(LParam));
             break;
         }
         case WM_MOUSEMOVE: {
             // Mouse move
             i32 XPosition = GET_X_LPARAM(LParam);
-            i32 YPosition = GET_Y_LPARAM(WParam);
+            i32 YPosition = GET_Y_LPARAM(LParam);
 			
             MouseProcessPosition(XPosition, YPosition);
         } break;

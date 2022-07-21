@@ -38,6 +38,12 @@ struct d3d11_shader
     ID3D11InputLayout* InputLayout;  
 };
 
+struct d3d11_material
+{
+    ID3D11RasterizerState* RState;
+    ID3D11DepthStencilState* DState;
+};
+
 static d3d11_state State;
 
 const D3D_DRIVER_TYPE DriverTypes[] =
@@ -48,6 +54,9 @@ const D3D_DRIVER_TYPE DriverTypes[] =
 };
 
 D3D11_BIND_FLAG BufferUsageToD3D11(rhi_buffer_usage Usage);
+D3D11_CULL_MODE CullModeToD3D11(rhi_cull_mode Cull);
+D3D11_FILL_MODE FillModeToD3D11(rhi_fill_mode Fill);
+D3D11_COMPARISON_FUNC CompareToD3D11(rhi_comp_op Compare);
 
 void VideoInit(void* WindowHandle)
 {
@@ -162,7 +171,10 @@ void VideoBegin()
     Viewport.MinDepth = 0.0f;
     Viewport.MaxDepth = 1.0f;
 
+    FLOAT Clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
     State.DeviceContext->RSSetViewports(1, &Viewport);
+    State.DeviceContext->ClearRenderTargetView(State.SwapchainRenderTarget, Clear);
     State.DeviceContext->OMSetRenderTargets(1, &State.SwapchainRenderTarget, NULL);
 }
 
@@ -226,15 +238,15 @@ void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_buffer_bind Bind)
     switch (Bind)
     {
         case BufferBind_Vertex: {
-            State.DeviceContext->VSGetConstantBuffers(Binding, 1, &Internal);
+            State.DeviceContext->VSSetConstantBuffers(Binding, 1, &Internal);
             break;
         }
         case BufferBind_Pixel: {
-            State.DeviceContext->PSGetConstantBuffers(Binding, 1, &Internal);
+            State.DeviceContext->PSSetConstantBuffers(Binding, 1, &Internal);
             break;
         }
         case BufferBind_Compute: {
-            State.DeviceContext->CSGetConstantBuffers(Binding, 1, &Internal);
+            State.DeviceContext->CSSetConstantBuffers(Binding, 1, &Internal);
             break;
         }
     }
@@ -362,6 +374,49 @@ void ShaderBind(rhi_shader* Shader)
     if (Internal->InputLayout) State.DeviceContext->IASetInputLayout(Internal->InputLayout);
 }
 
+void MaterialInit(rhi_material* Material, rhi_material_config Config)
+{
+    Material->Config = Config;
+    Material->Internal = new d3d11_material;
+    d3d11_material* Internal = (d3d11_material*)Material->Internal;
+    ZeroMemory(Internal, sizeof(d3d11_material));
+
+    D3D11_RASTERIZER_DESC Desc = {};
+    Desc.CullMode = CullModeToD3D11(Config.CullMode);
+    Desc.FillMode = FillModeToD3D11(Config.FillMode);
+    Desc.FrontCounterClockwise = (BOOL)Config.FrontFaceCCW;
+
+    if (FAILED(State.Device->CreateRasterizerState(&Desc, &Internal->RState))) {
+        LogCritical("Failed to create material rasterizer state!");
+    }
+
+    D3D11_DEPTH_STENCIL_DESC DDesc = {};
+    DDesc.DepthEnable = true;
+    DDesc.DepthFunc = CompareToD3D11(Config.CompareOP);
+    DDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+
+    if (FAILED(State.Device->CreateDepthStencilState(&DDesc, &Internal->DState))) {
+        LogCritical("Failed to create material depth stencil state!");
+    }
+}
+
+void MaterialFree(rhi_material* Material)
+{
+    d3d11_material* Internal = (d3d11_material*)Material->Internal;
+    SafeRelease(Internal->DState);
+    SafeRelease(Internal->RState);
+    delete Internal;
+}
+
+void MaterialBind(rhi_material* Material)
+{
+    d3d11_material* Internal = (d3d11_material*)Material->Internal;
+
+    State.DeviceContext->RSSetState(Internal->RState);
+    State.DeviceContext->OMSetDepthStencilState(Internal->DState, 0);
+}
+
+
 D3D11_BIND_FLAG BufferUsageToD3D11(rhi_buffer_usage Usage)
 {
     switch (Usage)
@@ -381,6 +436,69 @@ D3D11_BIND_FLAG BufferUsageToD3D11(rhi_buffer_usage Usage)
     }
 
     return D3D11_BIND_FLAG::D3D11_BIND_VERTEX_BUFFER;
+}
+
+D3D11_CULL_MODE CullModeToD3D11(rhi_cull_mode Cull)
+{
+    switch (Cull)
+    {
+        case CullMode_None: {
+            return D3D11_CULL_MODE::D3D11_CULL_NONE;
+        }
+        case CullMode_Back: {
+            return D3D11_CULL_MODE::D3D11_CULL_BACK;
+        }
+        case CullMode_Front: {
+            return D3D11_CULL_MODE::D3D11_CULL_FRONT;
+        }
+    }
+    
+    return D3D11_CULL_MODE::D3D11_CULL_NONE;
+}
+
+D3D11_FILL_MODE FillModeToD3D11(rhi_fill_mode Fill)
+{
+    switch (Fill)
+    {
+        case FillMode_Fill: {
+            return D3D11_FILL_MODE::D3D11_FILL_SOLID;
+        }
+        case FillMode_Line: {
+            return D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
+        }
+    }
+
+    return D3D11_FILL_MODE::D3D11_FILL_SOLID;
+}
+
+D3D11_COMPARISON_FUNC CompareToD3D11(rhi_comp_op Compare)
+{
+    switch (Compare)
+    {
+        case CompareOP_Always: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_ALWAYS;
+        }
+        case CompareOP_Never: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_NEVER;
+        }
+        case CompareOP_Less: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS;
+        }
+        case CompareOP_Greater: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_GREATER;
+        }
+        case CompareOP_LessEqual: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
+        }
+        case CompareOP_GreaterEqual: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_GREATER_EQUAL;
+        }
+        case CompareOP_NotEqual: {
+            return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_NOT_EQUAL;
+        }
+    }
+
+    return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS;
 }
 
 #endif
