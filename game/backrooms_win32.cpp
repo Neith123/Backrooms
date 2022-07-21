@@ -35,6 +35,9 @@ struct game_state
 platform_config PlatformConfiguration;
 game_state State;
 
+f32 Normalize(f32 Input, f32 Min, f32 Max);
+f32 ApplyDeadzone(f32 Value, f32 MaxValue, f32 Deadzone);
+
 void PlatformMessageBox(const char* Message, bool Error)
 {
     MessageBoxA(NULL, Message, Error ? "Error!" : "Message Box", MB_OK | (Error ? MB_ICONERROR : MB_ICONINFORMATION));
@@ -188,6 +191,37 @@ void XInputUpdate()
                 GamepadProcessTrigger(GamepadIndex, GamepadPhysicalLocation_Left, LeftTrigger);
                 GamepadProcessTrigger(GamepadIndex, GamepadPhysicalLocation_Right, RightTrigger);
             }
+        
+            CODE_BLOCK("Joysticks")
+            {
+                f32 NormLX = Normalize((f32)ControllerState.Gamepad.sThumbLX, -32767, 32767);
+                f32 NormLY = Normalize((f32)ControllerState.Gamepad.sThumbLY, -32767, 32767);
+                f32 NormRX = Normalize((f32)ControllerState.Gamepad.sThumbRX, -32767, 32767);
+                f32 NormRY = Normalize((f32)ControllerState.Gamepad.sThumbRY, -32767, 32767);
+                
+                f32 LX = 0.0f;
+                f32 LY = 0.0f;
+                f32 RX = 0.0f;
+                f32 RY = 0.0f;
+
+                if constexpr(XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE <= 1.0f || XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE <= 1.0f)
+                {
+                    LX = ApplyDeadzone(NormLX,  1.0f, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+                    LY = ApplyDeadzone(NormLY,  1.0f, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+                    RX = ApplyDeadzone(NormRX,  1.0f, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+                    RY = ApplyDeadzone(NormRY,  1.0f, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE);
+                }
+                else
+                {
+                    LX = ApplyDeadzone(NormLX,  1.0f, Normalize(XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, SHRT_MIN, SHRT_MAX));
+                    LY = ApplyDeadzone(NormLY,  1.0f, Normalize(XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, SHRT_MIN, SHRT_MAX));
+                    RX = ApplyDeadzone(NormRX,  1.0f, Normalize(XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, SHRT_MIN, SHRT_MAX));
+                    RY = ApplyDeadzone(NormRY,  1.0f, Normalize(XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, SHRT_MIN, SHRT_MAX));
+                }
+
+                GamepadProcessJoystick(GamepadIndex, GamepadPhysicalLocation_Left, LX, LY);
+                GamepadProcessJoystick(GamepadIndex, GamepadPhysicalLocation_Right, RX, RY);
+            }
         }
     }
 }
@@ -217,6 +251,25 @@ int main()
         Win32Update();
     }
     Win32Destroy();
+}
+
+f32 Normalize(f32 Input, f32 Min, f32 Max)
+{
+    f32 Average = (Min + Max) / 2;
+    f32 Range = (Max - Min) / 2;
+    return (Input - Average) / Range;
+}
+
+f32 ApplyDeadzone(f32 Value, f32 MaxValue, f32 Deadzone)
+{
+    if (Value < -Deadzone)
+        Value += Deadzone;
+    else if (Value > Deadzone)
+        Value -= Deadzone;
+    else
+        return 0;
+    f32 NormValue = Value / (MaxValue - Deadzone);
+    return max(-1.0f, min(NormValue, 1.0f));
 }
 
 #endif

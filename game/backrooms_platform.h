@@ -53,9 +53,11 @@ void PlatformMessageBox(const char* Message, bool Error);
 bool GamepadIsButtonPressed(i32 GamepadIndex, gamepad_buttons Button);
 bool GamepadIsButtonReleased(i32 GamepadIndex, gamepad_buttons Button);
 f32 GamepadGetTriggerValue(i32 GamepadIndex, gamepad_physical_location Location);
+void GamepadGetJoystickValue(i32 GamepadIndex, gamepad_physical_location Location, f32* X, f32* Y);
 
 void GamepadProcessButtonState(i32 GamepadIndex, gamepad_buttons Button, bool State);
 void GamepadProcessTrigger(i32 GamepadIndex, gamepad_physical_location Location, f32 Value);
+void GamepadProcessJoystick(i32 GamepadIndex, gamepad_physical_location Location, f32 X, f32 Y);
 
 // NOTE(milo): DLL
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);
