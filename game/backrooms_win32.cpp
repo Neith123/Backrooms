@@ -13,7 +13,7 @@
 
 // NOTE(milo): These should be loaded from file.
 #define GAME_WINDOW_CLASS_NAME "GameWindowClass"
-#define GAME_WINDOW_TITLE "Voyage"
+#define GAME_WINDOW_TITLE "Backrooms"
 #define GAME_DEFAULT_WIDTH 1280
 #define GAME_DEFAULT_HEIGHT 720
 
