@@ -164,18 +164,30 @@ void XInputUpdate()
 
         if (Connected)
         {
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_A, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_B, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_X, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_Y, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Up, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Down, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Left, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Right, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_LeftThumb, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_LeftShoulder, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_RightThumb, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0);
-            GamepadProcessButtonState(GamepadIndex, GamepadButton_RightShoulder, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0);
+            CODE_BLOCK("Buttons")
+            {
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_A, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_B, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_X, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_Y, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Up, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Down, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Left, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Right, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_LeftThumb, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_LeftShoulder, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_RightThumb, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0);
+                GamepadProcessButtonState(GamepadIndex, GamepadButton_RightShoulder, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0);
+            }
+
+            CODE_BLOCK("Analog triggers")
+            {
+                f32 LeftTrigger = (f32)ControllerState.Gamepad.bLeftTrigger / 255;
+                f32 RightTrigger = (f32)ControllerState.Gamepad.bRightTrigger / 255;
+
+                GamepadProcessTrigger(GamepadIndex, GamepadPhysicalLocation_Left, LeftTrigger);
+                GamepadProcessTrigger(GamepadIndex, GamepadPhysicalLocation_Right, RightTrigger);
+            }
         }
     }
 }

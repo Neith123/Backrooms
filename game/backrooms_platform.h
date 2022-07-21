@@ -37,6 +37,13 @@ enum gamepad_buttons
     GamepadButton_MaxButtons
 };
 
+enum gamepad_physical_location
+{
+    GamepadPhysicalLocation_Left,
+    GamepadPhysicalLocation_Right,
+    GamepadPhysicalLocation_MaxLocations
+};
+
 extern platform_config PlatformConfiguration;
 
 // NOTE(milo): Debug tools
@@ -45,7 +52,10 @@ void PlatformMessageBox(const char* Message, bool Error);
 // NOTE(milo): Input functions
 bool GamepadIsButtonPressed(i32 GamepadIndex, gamepad_buttons Button);
 bool GamepadIsButtonReleased(i32 GamepadIndex, gamepad_buttons Button);
+f32 GamepadGetTriggerValue(i32 GamepadIndex, gamepad_physical_location Location);
+
 void GamepadProcessButtonState(i32 GamepadIndex, gamepad_buttons Button, bool State);
+void GamepadProcessTrigger(i32 GamepadIndex, gamepad_physical_location Location, f32 Value);
 
 // NOTE(milo): DLL
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);
