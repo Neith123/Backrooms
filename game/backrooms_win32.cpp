@@ -346,8 +346,8 @@ void Win32Destroy()
 
 void AudioInit()
 {
-    HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
-    if (FAILED(hr)) {
+    HRESULT Result = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    if (FAILED(Result)) {
         LogCritical("Failed to initialize COM.");
     }
 
@@ -356,8 +356,8 @@ void AudioInit()
     Flags |= XAUDIO2_DEBUG_ENGINE;
 #endif
 
-    hr = XAudio2CreateProc(&AudioState.Device, Flags, XAUDIO2_DEFAULT_PROCESSOR);
-    if (FAILED(hr)) {
+    Result = XAudio2CreateProc(&AudioState.Device, Flags, XAUDIO2_DEFAULT_PROCESSOR);
+    if (FAILED(Result)) {
         LogCritical("Failed to initialise XAudio2!");
     }
 
@@ -368,13 +368,13 @@ void AudioInit()
     AudioState.Device->SetDebugConfiguration(&DebugConfig);
 #endif
 
-    hr = AudioState.Device->CreateMasteringVoice(&AudioState.MasteringVoice, DEFAULT_AUDIO_CHANNELS, DEFAULT_AUDIO_SAMPLE_RATE, 0, NULL, NULL, AudioCategory_GameMedia);
-    if (FAILED(hr)) {
+    Result = AudioState.Device->CreateMasteringVoice(&AudioState.MasteringVoice, DEFAULT_AUDIO_CHANNELS, DEFAULT_AUDIO_SAMPLE_RATE, 0, NULL, NULL, AudioCategory_GameMedia);
+    if (FAILED(Result)) {
         LogCritical("Failed to create XAudio2 mastering voice!");
     }
 
-    hr = AudioState.Device->StartEngine();
-    if (FAILED(hr)) {
+    Result = AudioState.Device->StartEngine();
+    if (FAILED(Result)) {
         LogCritical("Failed to start XAudio2 engine!");
     }
 
@@ -386,6 +386,159 @@ void AudioExit()
     AudioState.MasteringVoice->DestroyVoice();
     AudioState.Device->StopEngine();
     AudioState.Device->Release();
+}
+
+void AudioSourceCreate(audio_source* Source)
+{
+    Source->Looping = false;
+    Source->Volume = 1.0f;
+    Source->Pitch = 1.0f;
+    Source->Samples = nullptr;
+    Source->BackendData = nullptr;
+
+    WAVEFORMATEX WaveFormat = {};
+	WaveFormat.wFormatTag = WAVE_FORMAT_PCM; // PCM audio format
+	WaveFormat.wBitsPerSample = 16; // i16
+	WaveFormat.nChannels = DEFAULT_AUDIO_CHANNELS; // 2 channels commonly
+	WaveFormat.nSamplesPerSec = DEFAULT_AUDIO_SAMPLE_RATE; // 48khz or 48000 sample rate commonly
+	WaveFormat.nAvgBytesPerSec = (WaveFormat.wBitsPerSample * WaveFormat.nSamplesPerSec * WaveFormat.nChannels) / 8;
+	WaveFormat.nBlockAlign = (WaveFormat.nChannels * WaveFormat.wBitsPerSample) / 8; // 4 bytes commonly
+	WaveFormat.cbSize = 0;
+
+    HRESULT Result = AudioState.Device->CreateSourceVoice((IXAudio2SourceVoice**)&Source->BackendData, &WaveFormat, XAUDIO2_VOICE_USEFILTER, 1024.0f, NULL, NULL, NULL);
+    if (FAILED(Result)) {
+        LogCritical("Failed to create source voice!");
+    }
+}
+
+void AudioSourceLoad(audio_source* Source, const char* Path, audio_source_type Type)
+{
+    IXAudio2SourceVoice* SourceVoice = (IXAudio2SourceVoice*)Source->BackendData;
+
+    Source->Type = Type;
+
+    u64 TotalPCMFrameCount = 0;
+
+    switch (Type) {
+        case AudioSourceType_WAV: {
+            if (!drwav_init_file(&Source->Loaders.Wave, Path, NULL)) {
+                LogError("Failed to load wave file: %s", Path);
+                return;
+            }
+
+            TotalPCMFrameCount = Source->Loaders.Wave.totalPCMFrameCount;
+            Source->Samples = (i16*)malloc(TotalPCMFrameCount * DEFAULT_AUDIO_CHANNELS * sizeof(i16));
+            drwav_read_pcm_frames_s16(&Source->Loaders.Wave, TotalPCMFrameCount, Source->Samples);
+
+            break;
+        }
+        case AudioSourceType_MP3: {
+            if (!drmp3_init_file(&Source->Loaders.MP3, Path, NULL)) {
+                LogError("Failed to load mp3 file: %s", Path);
+                return;
+            }
+
+            TotalPCMFrameCount = drmp3_get_pcm_frame_count(&Source->Loaders.MP3);
+            Source->Samples = (i16*)malloc(TotalPCMFrameCount * DEFAULT_AUDIO_CHANNELS * sizeof(i16));
+            drmp3_read_pcm_frames_s16(&Source->Loaders.MP3, TotalPCMFrameCount, Source->Samples);
+
+            break;
+        }
+        case AudioSourceType_FLAC: {
+            Source->Loaders.Flac = drflac_open_file(Path, NULL);
+            if (!Source->Loaders.Flac) {
+                LogCritical("Failed to load flac file: %s", Path);
+            }
+
+            TotalPCMFrameCount = Source->Loaders.Flac->totalPCMFrameCount;
+            Source->Samples = (i16*)malloc(TotalPCMFrameCount * DEFAULT_AUDIO_CHANNELS * sizeof(i16));
+            drflac_read_pcm_frames_s16(Source->Loaders.Flac, TotalPCMFrameCount, Source->Samples);
+
+            break;
+        }
+    }
+
+    XAUDIO2_BUFFER AudioBuffer = {};
+	AudioBuffer.Flags = 0;
+	AudioBuffer.AudioBytes = TotalPCMFrameCount * DEFAULT_AUDIO_CHANNELS * sizeof(i16);
+	AudioBuffer.pAudioData = (BYTE*)Source->Samples;
+	AudioBuffer.PlayBegin = 0;
+	AudioBuffer.PlayLength = 0; // Play the entire buffer
+	AudioBuffer.LoopBegin = 0;
+	AudioBuffer.LoopLength = 0;
+	AudioBuffer.LoopCount = Source->Looping ? XAUDIO2_LOOP_INFINITE : 0;
+	AudioBuffer.pContext = NULL;
+
+    HRESULT Result = SourceVoice->SubmitSourceBuffer(&AudioBuffer, NULL);
+    if (FAILED(Result)) {
+        LogError("Failed to submit XAudio2 source buffer!");
+        return;
+    }
+
+    LogInfo("Loaded audio source: %s", Path);
+}
+
+void AudioSourcePlay(audio_source* Source)
+{
+    IXAudio2SourceVoice* SourceVoice = (IXAudio2SourceVoice*)Source->BackendData;
+
+    if (FAILED(SourceVoice->Start(0, XAUDIO2_COMMIT_NOW))) {
+        LogError("Failed to start source voice!");
+        return;
+    }
+}
+
+void AudioSourceStop(audio_source* Source)
+{
+    IXAudio2SourceVoice* SourceVoice = (IXAudio2SourceVoice*)Source->BackendData;
+    SourceVoice->Stop(0, XAUDIO2_COMMIT_NOW);
+}
+
+void AudioSourceSetVolume(audio_source* Source, f32 Volume)
+{
+    IXAudio2SourceVoice* SourceVoice = (IXAudio2SourceVoice*)Source->BackendData;
+
+    Source->Volume = Volume;
+    SourceVoice->SetVolume(Volume, XAUDIO2_COMMIT_NOW);
+}
+
+void AudioSourceSetPitch(audio_source* Source, f32 Pitch)
+{
+    IXAudio2SourceVoice* SourceVoice = (IXAudio2SourceVoice*)Source->BackendData;
+
+    Source->Pitch = Pitch;
+    SourceVoice->SetFrequencyRatio(Pitch, XAUDIO2_COMMIT_NOW);
+}
+
+void AudioSourceSetLoop(audio_source* Source, bool Loop)
+{
+    Source->Looping = Loop;
+}
+
+void AudioSourceDestroy(audio_source* Source)
+{
+    if (Source->Samples) {
+        free(Source->Samples);
+        switch (Source->Type) {
+            case AudioSourceType_FLAC: {
+                drflac_close(Source->Loaders.Flac);
+                break;
+            }
+            case AudioSourceType_MP3: {
+                drmp3_uninit(&Source->Loaders.MP3);
+                break;
+            }
+            case AudioSourceType_WAV: {
+                drwav_uninit(&Source->Loaders.Wave);
+                break;
+            }
+        }
+    }
+
+    if (Source->BackendData) {
+        IXAudio2SourceVoice* SourceVoice = (IXAudio2SourceVoice*)Source->BackendData;
+        SourceVoice->DestroyVoice();
+    }
 }
 
 int main()
