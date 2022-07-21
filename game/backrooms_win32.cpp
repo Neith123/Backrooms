@@ -92,6 +92,12 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
             PlatformConfiguration.Running = false;
             break;
         }
+        case WM_SIZE: {
+            if (VideoReady()) {
+                VideoResize((u32)LOWORD(LParam), (u32)HIWORD(LParam));
+            }
+            break;
+        }
         case WM_MOUSEMOVE: {
             // Mouse move
             i32 XPosition = GET_X_LPARAM(LParam);
@@ -552,6 +558,8 @@ int main()
         XInputUpdate();
 
         GameUpdate();
+
+        VideoPresent();
     }
     Win32Destroy();
 }
