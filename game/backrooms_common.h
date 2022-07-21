@@ -12,3 +12,11 @@ typedef float f32;
 typedef double f64;
 
 #define CODE_BLOCK(block)
+
+#if defined(_WIN32) 
+    #define BACKROOMS_WINDOWS
+#elif defined(__APPLE__)
+    #error "MacOS is not supported!"
+#elif defined(__linux__)
+    #error "Linux is not supported!"
+#endif 

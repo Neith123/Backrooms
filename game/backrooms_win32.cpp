@@ -1,9 +1,11 @@
+#include "backrooms_platform.h"
+#include "backrooms_logger.h"
+
+#if defined(BACKROOMS_WINDOWS)
+
 #include <Windows.h>
 #include <Xinput.h>
 #include <xaudio2.h>
-
-#include "backrooms_platform.h"
-#include "backrooms_logger.h"
 
 // NOTE(milo): These should be loaded from file.
 #define GAME_WINDOW_CLASS_NAME "GameWindowClass"
@@ -150,6 +152,34 @@ void Win32Create(HINSTANCE Instance)
     }
 }
 
+void XInputUpdate()
+{
+    for (u16 GamepadIndex = 0; GamepadIndex < GAMEPAD_MAX_PLAYERS; GamepadIndex++)
+    {
+        XINPUT_STATE ControllerState;
+        ZeroMemory(&ControllerState, sizeof(XINPUT_STATE));
+
+        DWORD Result = XInputGetStateProc(GamepadIndex, &ControllerState);
+        bool Connected = (Result == ERROR_SUCCESS);
+
+        if (Connected)
+        {
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_A, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_B, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_X, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_Y, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Up, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Down, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Left, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_Dpad_Right, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_LeftThumb, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_LeftShoulder, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_RightThumb, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0);
+            GamepadProcessButtonState(GamepadIndex, GamepadButton_RightShoulder, (ControllerState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0);
+        }
+    }
+}
+
 void Win32Update()
 {
     MSG Message;
@@ -171,7 +201,10 @@ int main()
 {
     Win32Create(GetModuleHandle(NULL));
     while (PlatformConfiguration.Running) {
+        XInputUpdate();
         Win32Update();
     }
     Win32Destroy();
 }
+
+#endif
