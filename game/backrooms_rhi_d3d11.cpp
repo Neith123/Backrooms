@@ -171,6 +171,11 @@ void VideoDraw(u32 Count, u32 Start)
     State.DeviceContext->Draw(Count, Start);
 }
 
+void VideoDrawIndexed(u32 Count, u32 Start)
+{
+    State.DeviceContext->DrawIndexed(Count, Start, 0);
+}
+
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage)
 {
     Buffer->Stride = Stride;

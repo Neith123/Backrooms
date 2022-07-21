@@ -37,6 +37,7 @@ void VideoResize(u32 Width, u32 Height);
 bool VideoReady();
 void VideoBegin();
 void VideoDraw(u32 Count, u32 Start);
+void VideoDrawIndexed(u32 Count, u32 Start);
 
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage);
 void BufferFree(rhi_buffer* Buffer);

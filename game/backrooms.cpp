@@ -11,15 +11,22 @@ struct game_state
 
     rhi_shader TriangleShader;
     rhi_buffer TriangleBuffer;
+    rhi_buffer TriangleIndex;
 };
 
 static game_state State;
 
 static float Vertices[] = {
-    -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-     0.0f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-     0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f
+    0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+    0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+   -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,
+   -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
 };
+
+static u32 Indices[] = {
+    0, 1, 3,
+    1, 2, 3
+};  
 
 void GameInit()
 {
@@ -39,6 +46,9 @@ void GameInit()
         i64 VertexStride = sizeof(float) * 6;
         BufferInit(&State.TriangleBuffer, sizeof(Vertices), VertexStride, BufferUsage_Vertex);
         BufferUpload(&State.TriangleBuffer, Vertices);
+
+        BufferInit(&State.TriangleIndex, sizeof(Indices), 0, BufferUsage_Index);
+        BufferUpload(&State.TriangleIndex, Indices);
     }
 
     LogInfo("Game initialised.");
@@ -49,11 +59,13 @@ void GameUpdate()
     VideoBegin();
     ShaderBind(&State.TriangleShader);
     BufferBindVertex(&State.TriangleBuffer);
-    VideoDraw(3, 0);
+    BufferBindIndex(&State.TriangleIndex);
+    VideoDrawIndexed(6, 0);
 }
 
 void GameExit()
 {
+    BufferFree(&State.TriangleIndex);
     BufferFree(&State.TriangleBuffer);
     ShaderFree(&State.TriangleShader);
 
