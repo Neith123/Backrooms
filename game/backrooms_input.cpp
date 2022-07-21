@@ -1,4 +1,4 @@
-#include "backrooms_platform.h"
+#include "backrooms_input.h"
 
 struct gamepad_state
 {
@@ -9,9 +9,18 @@ struct gamepad_state
     f32 Vibration[2];
 };
 
+struct mouse_state
+{
+    bool Buttons[MouseButton_MaxButtons];
+
+    i8 Wheel;
+    i16 Position[2];
+};
+
 struct input_state
 {
     gamepad_state GamepadState[GAMEPAD_MAX_PLAYERS];
+    mouse_state MouseState;
 };
 
 static input_state InputState;
@@ -68,4 +77,41 @@ void GamepadSetVibrationValue(i32 GamepadIndex, f32 Left, f32 Right)
 void GamepadResetVibration(i32 GamepadIndex)
 {
     GamepadSetVibrationValue(GamepadIndex, 0.0f, 0.0f);
+}
+
+void MouseGetPosition(i32* X, i32* Y)
+{
+    *X = (i32)InputState.MouseState.Position[0];
+    *Y = (i32)InputState.MouseState.Position[1];
+}
+
+i8 MouseGetWheel()
+{
+    return InputState.MouseState.Wheel;
+}
+
+bool MouseIsButtonPressed(mouse_buttons Button)
+{
+    return InputState.MouseState.Buttons[Button] == true;
+}
+
+bool MouseIsButtonReleased(mouse_buttons Button)
+{
+    return InputState.MouseState.Buttons[Button] == false;
+}
+
+void MouseProcessPosition(i32 X, i32 Y)
+{
+    InputState.MouseState.Position[0] = X;
+    InputState.MouseState.Position[1] = Y;
+}
+
+void MouseProcessWheel(i8 Wheel)
+{
+    InputState.MouseState.Wheel = Wheel;
+}
+
+void MouseProcessButton(mouse_buttons Button, bool State)
+{
+    InputState.MouseState.Buttons[Button] = State;
 }

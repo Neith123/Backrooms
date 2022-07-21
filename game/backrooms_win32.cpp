@@ -1,9 +1,11 @@
 #include "backrooms_platform.h"
 #include "backrooms_logger.h"
+#include "backrooms_input.h"
 
 #if defined(BACKROOMS_WINDOWS)
 
 #include <Windows.h>
+#include <windowsx.h>
 #include <Xinput.h>
 #include <xaudio2.h>
 
@@ -80,6 +82,47 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
             PlatformConfiguration.Running = false;
             break;
         }
+        case WM_MOUSEMOVE: {
+            // Mouse move
+            i32 XPosition = GET_X_LPARAM(LParam);
+            i32 YPosition = GET_Y_LPARAM(WParam);
+			
+            MouseProcessPosition(XPosition, YPosition);
+        } break;
+        case WM_MOUSEWHEEL: {
+            i32 ZDelta = GET_WHEEL_DELTA_WPARAM(WParam);
+            if (ZDelta != 0) {
+                ZDelta = (ZDelta < 0) ? -1 : 1;
+                MouseProcessWheel(ZDelta);
+            }
+        } break;
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP: {
+            bool Pressed = Message == WM_LBUTTONDOWN || Message == WM_RBUTTONDOWN || Message == WM_MBUTTONDOWN;
+            mouse_buttons Button = MouseButton_MaxButtons;
+            switch (Message) {
+                case WM_LBUTTONDOWN:
+                case WM_LBUTTONUP:
+				Button = MouseButton_Left;
+				break;
+                case WM_MBUTTONDOWN:
+                case WM_MBUTTONUP:
+				Button = MouseButton_Middle;
+				break;
+                case WM_RBUTTONDOWN:
+                case WM_RBUTTONUP:
+				Button = MouseButton_Right;
+				break;
+            }
+			
+            if (Button != MouseButton_MaxButtons) {
+                MouseProcessButton(Button, Pressed);
+            }
+        } break;
         default: {
             return DefWindowProc(Window, Message, WParam, LParam);
         }
