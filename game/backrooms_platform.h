@@ -2,6 +2,8 @@
 
 #include "backrooms_common.h"
 
+#include <string>
+
 struct platform_config
 {
     bool Running;
@@ -28,6 +30,9 @@ extern platform_config PlatformConfiguration;
 // NOTE(milo): Debug tools
 void PlatformMessageBox(const char* Message, bool Error);
 void PlatformSetLogColor(log_color Color);
+
+// NOTE(milo): File IO
+std::string PlatformReadFile(const char* Path);
 
 // NOTE(milo): DLL
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);

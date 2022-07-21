@@ -1,10 +1,14 @@
 #include "backrooms_rhi.h"
 #include "backrooms_logger.h"
+#include "backrooms_platform.h"
 
 #if defined(BACKROOMS_WINDOWS)
 
 #include <d3d11.h>
 #include <dxgi.h>
+#include <d3dcompiler.h>
+#include <string>
+#include <vector>
 
 #define SafeRelease(ptr) if (ptr) ptr->Release()
 
@@ -24,6 +28,14 @@ struct d3d11_state
     IDXGISwapChain* SwapChain;
     ID3D11Texture2D* SwapchainBuffer;
     ID3D11RenderTargetView* SwapchainRenderTarget;
+};
+
+struct d3d11_shader
+{
+    ID3D11VertexShader* VS;
+    ID3D11PixelShader* PS;
+    ID3D11ComputeShader* CS;
+    ID3D11InputLayout* InputLayout;  
 };
 
 static d3d11_state State;
@@ -139,6 +151,26 @@ bool VideoReady()
     return State.SwapChain != NULL;
 }
 
+void VideoBegin()
+{
+    D3D11_VIEWPORT Viewport;
+    ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
+    Viewport.TopLeftX = 0;
+    Viewport.TopLeftY = 0;
+    Viewport.Width = (FLOAT)State.Width;
+    Viewport.Height = (FLOAT)State.Height;
+    Viewport.MinDepth = 0.0f;
+    Viewport.MaxDepth = 1.0f;
+
+    State.DeviceContext->RSSetViewports(1, &Viewport);
+    State.DeviceContext->OMSetRenderTargets(1, &State.SwapchainRenderTarget, NULL);
+}
+
+void VideoDraw(u32 Count, u32 Start)
+{
+    State.DeviceContext->Draw(Count, Start);
+}
+
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage)
 {
     Buffer->Stride = Stride;
@@ -201,6 +233,128 @@ void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_buffer_bind Bind)
             break;
         }
     }
+}
+
+ID3DBlob* CompileBlob(std::string Source, const char* Profile)
+{
+    ID3DBlob* ShaderBlob;
+    ID3DBlob* ErrorBlob;
+    HRESULT Status = D3DCompile(Source.c_str(), Source.size(), NULL, NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", Profile, 0, 0, &ShaderBlob, &ErrorBlob);
+    if (ErrorBlob)
+        LogCritical("Shader Error (profile: %s) : %s", Profile, (char*)ErrorBlob->GetBufferPointer());
+    return ShaderBlob;
+}
+
+void ShaderInit(rhi_shader* Shader, const char* V, const char* P, const char* C)
+{
+    Shader->Internal = new d3d11_shader;
+    d3d11_shader* Internal = (d3d11_shader*)Shader->Internal;
+    ZeroMemory(Internal, sizeof(d3d11_shader));
+
+    ID3DBlob* VS = nullptr;
+    ID3DBlob* PS = nullptr;
+    ID3DBlob* CS = nullptr;
+
+    if (V) {
+        VS = CompileBlob(PlatformReadFile(V), "vs_5_0");
+        if (FAILED(State.Device->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), NULL, &Internal->VS))) {
+            LogCritical("Failed to create vertex shader!");
+        }
+    }
+    if (P) {
+        PS = CompileBlob(PlatformReadFile(P), "ps_5_0");
+        if (FAILED(State.Device->CreatePixelShader(PS->GetBufferPointer(), PS->GetBufferSize(), NULL, &Internal->PS))) {
+            LogCritical("Failed to create pixel shader!");
+        }
+    }
+    if (C) {
+        CS = CompileBlob(PlatformReadFile(C), "cs_5_0");
+        if (FAILED(State.Device->CreateComputeShader(PS->GetBufferPointer(), PS->GetBufferSize(), NULL, &Internal->CS))) {
+            LogCritical("Failed to create compute shader!");
+        }
+    }
+
+    if (VS) {
+        ID3D11ShaderReflection* Reflect = NULL;
+        if (FAILED(D3DReflect(VS->GetBufferPointer(), VS->GetBufferSize(), IID_PPV_ARGS(&Reflect)))) {
+            LogCritical("Failed to reflect vertex shader!");
+        }
+
+        D3D11_SHADER_DESC ShaderDesc;
+        Reflect->GetDesc(&ShaderDesc);
+
+        std::vector<D3D11_INPUT_ELEMENT_DESC> InputLayoutDesc;
+        for (u32 ParameterIndex = 0; ParameterIndex < ShaderDesc.InputParameters; ParameterIndex++)
+        {
+            D3D11_SIGNATURE_PARAMETER_DESC ParamDesc;
+            Reflect->GetInputParameterDesc(ParameterIndex, &ParamDesc);
+
+            D3D11_INPUT_ELEMENT_DESC ElementDesc;
+            ElementDesc.SemanticName = ParamDesc.SemanticName;
+            ElementDesc.SemanticIndex = ParamDesc.SemanticIndex;
+            ElementDesc.InputSlot = 0;
+            ElementDesc.AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+            ElementDesc.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+            ElementDesc.InstanceDataStepRate = 0;   
+
+            if (ParamDesc.Mask == 1)
+            {
+                if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) ElementDesc.Format = DXGI_FORMAT_R32_UINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) ElementDesc.Format = DXGI_FORMAT_R32_SINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) ElementDesc.Format = DXGI_FORMAT_R32_FLOAT;
+            }
+            else if (ParamDesc.Mask <= 3)
+            {
+                if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) ElementDesc.Format = DXGI_FORMAT_R32G32_UINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) ElementDesc.Format = DXGI_FORMAT_R32G32_SINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) ElementDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+            }
+            else if ( ParamDesc.Mask <= 7 )
+            {
+                if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) ElementDesc.Format = DXGI_FORMAT_R32G32B32_UINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) ElementDesc.Format = DXGI_FORMAT_R32G32B32_SINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) ElementDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+            }
+            else if (ParamDesc.Mask <= 15)
+            {
+                if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_UINT32) ElementDesc.Format = DXGI_FORMAT_R32G32B32A32_UINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_SINT32) ElementDesc.Format = DXGI_FORMAT_R32G32B32A32_SINT;
+                else if (ParamDesc.ComponentType == D3D_REGISTER_COMPONENT_FLOAT32) ElementDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+            }
+
+            InputLayoutDesc.push_back(ElementDesc);
+        }
+
+        if (FAILED(State.Device->CreateInputLayout(&InputLayoutDesc[0], (UINT)InputLayoutDesc.size(), VS->GetBufferPointer(), VS->GetBufferSize(), &Internal->InputLayout))) {
+            LogCritical("Failed to create input layout!");
+        }
+
+        SafeRelease(Reflect);
+    }
+
+    SafeRelease(CS);
+    SafeRelease(PS);
+    SafeRelease(VS);
+}
+
+void ShaderFree(rhi_shader* Shader)
+{
+    d3d11_shader* Internal = (d3d11_shader*)Shader->Internal;
+    SafeRelease(Internal->InputLayout);
+    SafeRelease(Internal->CS);
+    SafeRelease(Internal->PS);
+    SafeRelease(Internal->VS);
+
+    delete Shader->Internal;
+}
+
+void ShaderBind(rhi_shader* Shader)
+{
+    d3d11_shader* Internal = (d3d11_shader*)Shader->Internal;
+    if (Internal->VS) State.DeviceContext->VSSetShader(Internal->VS, NULL, 0);
+    if (Internal->PS) State.DeviceContext->PSSetShader(Internal->PS, NULL, 0);
+    if (Internal->CS) State.DeviceContext->CSSetShader(Internal->CS, NULL, 0);
+    if (Internal->InputLayout) State.DeviceContext->IASetInputLayout(Internal->InputLayout);
 }
 
 D3D11_BIND_FLAG BufferUsageToD3D11(rhi_buffer_usage Usage)

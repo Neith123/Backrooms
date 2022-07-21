@@ -12,6 +12,9 @@
 #include <Xinput.h>
 #include <xaudio2.h>
 
+#include <fstream>
+#include <sstream>
+
 // NOTE(milo): These should be loaded from file.
 #define GAME_WINDOW_CLASS_NAME "GameWindowClass"
 #define GAME_WINDOW_TITLE "Backrooms"
@@ -59,6 +62,19 @@ void PlatformSetLogColor(log_color Color)
 {
     static u8 Levels[3] = {11, 6, 4};
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Levels[Color]);
+}
+
+std::string PlatformReadFile(const char* Path)
+{
+    std::ifstream Stream(Path);
+    if (!Stream.is_open()) {
+        LogError("Failed to open file: %s", Path);
+        return "";
+    }
+    std::stringstream StringStream;
+    StringStream << Stream.rdbuf();
+    Stream.close();
+    return StringStream.str();
 }
 
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path)
