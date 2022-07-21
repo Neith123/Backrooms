@@ -2,6 +2,7 @@
 #include "backrooms_logger.h"
 #include "backrooms_input.h"
 #include "backrooms_audio.h"
+#include "backrooms_rhi.h"
 #include "backrooms.h"
 
 #if defined(BACKROOMS_WINDOWS)
@@ -236,6 +237,7 @@ void Win32Create(HINSTANCE Instance)
     }
 
     AudioInit();
+    VideoInit((void*)State.WindowHandle);
     GameInit();
 }
 
@@ -336,6 +338,7 @@ void Win32Update()
 void Win32Destroy()
 {
     GameExit();
+    VideoExit();
     AudioExit();
 
     PlatformDLLExit(&State.AudioLibrary);
