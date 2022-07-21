@@ -6,6 +6,7 @@ struct gamepad_state
 
     f32 Triggers[GamepadPhysicalLocation_MaxLocations];
     f32 Joysticks[GamepadPhysicalLocation_MaxLocations][2];
+    f32 Vibration[2];
 };
 
 struct input_state
@@ -36,6 +37,12 @@ void GamepadGetJoystickValue(i32 GamepadIndex, gamepad_physical_location Locatio
     *Y = InputState.GamepadState[GamepadIndex].Joysticks[Location][1];
 }
 
+void GamepadGetVibrationValue(i32 GamepadIndex, f32* Left, f32* Right)
+{
+    *Left = InputState.GamepadState[GamepadIndex].Vibration[0];
+    *Right = InputState.GamepadState[GamepadIndex].Vibration[1];
+}
+
 void GamepadProcessButtonState(i32 GamepadIndex, gamepad_buttons Button, bool State)
 {
     InputState.GamepadState[GamepadIndex].Buttons[Button] = State;
@@ -50,4 +57,15 @@ void GamepadProcessJoystick(i32 GamepadIndex, gamepad_physical_location Location
 {
     InputState.GamepadState[GamepadIndex].Joysticks[Location][0] = X;
     InputState.GamepadState[GamepadIndex].Joysticks[Location][1] = Y;
+}
+
+void GamepadSetVibrationValue(i32 GamepadIndex, f32 Left, f32 Right)
+{
+    InputState.GamepadState[GamepadIndex].Vibration[0] = Left;
+    InputState.GamepadState[GamepadIndex].Vibration[1] = Right;
+}
+
+void GamepadResetVibration(i32 GamepadIndex)
+{
+    GamepadSetVibrationValue(GamepadIndex, 0.0f, 0.0f);
 }

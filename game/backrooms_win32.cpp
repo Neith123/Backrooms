@@ -222,6 +222,20 @@ void XInputUpdate()
                 GamepadProcessJoystick(GamepadIndex, GamepadPhysicalLocation_Left, LX, LY);
                 GamepadProcessJoystick(GamepadIndex, GamepadPhysicalLocation_Right, RX, RY);
             }
+
+            CODE_BLOCK("Vibration")
+            {
+                XINPUT_VIBRATION Vibration;
+                f32 RightSpeed, LeftSpeed;
+                GamepadGetVibrationValue(GamepadIndex, &RightSpeed, &LeftSpeed);
+
+                u16 Right = RightSpeed * 65335.0f;
+                u16 Left = LeftSpeed * 65335.0f;
+                Vibration.wLeftMotorSpeed = Left;
+                Vibration.wRightMotorSpeed = Right;
+
+                XInputSetStateProc(GamepadIndex, &Vibration);
+            }
         }
     }
 }
@@ -247,8 +261,8 @@ int main()
 {
     Win32Create(GetModuleHandle(NULL));
     while (PlatformConfiguration.Running) {
-        XInputUpdate();
         Win32Update();
+        XInputUpdate();
     }
     Win32Destroy();
 }
