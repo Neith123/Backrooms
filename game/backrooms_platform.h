@@ -38,3 +38,7 @@ std::string PlatformReadFile(const char* Path);
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);
 void PlatformDLLExit(platform_dynamic_lib* Library);
 void* PlatformDLLGet(platform_dynamic_lib* Library, const char* FunctionName);
+
+// NOTE(milo): Timer
+void PlatformTimerInit();
+f32 PlatformTimerGet();

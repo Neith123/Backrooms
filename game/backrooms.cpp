@@ -7,6 +7,8 @@
 
 struct game_state
 {
+    f32 LastFrame;
+
     audio_source TestSource;
 
     rhi_shader TriangleShader;
@@ -56,6 +58,10 @@ void GameInit()
 
 void GameUpdate()
 {
+    f32 Time = PlatformTimerGet();
+    f32 Delta = Time - State.LastFrame;
+    State.LastFrame = Time;
+
     VideoBegin();
     ShaderBind(&State.TriangleShader);
     BufferBindVertex(&State.TriangleBuffer);

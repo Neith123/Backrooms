@@ -38,6 +38,11 @@ struct game_state
 
     platform_dynamic_lib InputLibrary;
     platform_dynamic_lib AudioLibrary;
+
+    struct {
+        i64 Start;
+        i64 Frequency;
+    } Timer;
 };
 
 struct audio_state
@@ -258,6 +263,7 @@ void Win32Create(HINSTANCE Instance)
         }
     }
 
+    PlatformTimerInit();
     AudioInit();
     VideoInit((void*)State.WindowHandle);
     GameInit();
@@ -367,6 +373,28 @@ void Win32Destroy()
     PlatformDLLExit(&State.InputLibrary);
 
     DestroyWindow(State.WindowHandle);
+}
+
+void PlatformTimerInit()
+{
+    LARGE_INTEGER Large;
+
+    QueryPerformanceCounter(&Large);
+    State.Timer.Start = Large.QuadPart;
+
+    QueryPerformanceFrequency(&Large);
+    State.Timer.Frequency = Large.QuadPart;
+}
+
+f32 PlatformTimerGet()
+{
+    LARGE_INTEGER Large;
+    QueryPerformanceCounter(&Large);
+
+    i64 Now = Large.QuadPart;
+    i64 Time = Now - State.Timer.Start;
+
+    return (f32)((f64)Time / State.Timer.Frequency);
 }
 
 void AudioInit()
