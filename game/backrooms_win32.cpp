@@ -43,6 +43,12 @@ void PlatformMessageBox(const char* Message, bool Error)
     MessageBoxA(NULL, Message, Error ? "Error!" : "Message Box", MB_OK | (Error ? MB_ICONERROR : MB_ICONINFORMATION));
 }
 
+void PlatformSetLogColor(log_color Color)
+{
+    static u8 Levels[3] = {11, 6, 4};
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Levels[Color]);
+}
+
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path)
 {
     Library->InternalHandle = LoadLibraryA(Path);

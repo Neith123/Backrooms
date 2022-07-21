@@ -1,8 +1,9 @@
 #pragma once
 
 #include "backrooms_common.h"
+#include "backrooms_platform.h"
 
-void LogOutput(const char* Color, const char* Message);
+void LogOutput(log_color Color, const char* Message);
 
 void LogInfo(const char* Format, ...);
 void LogWarn(const char* Format, ...);

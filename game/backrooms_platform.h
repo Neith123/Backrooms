@@ -44,10 +44,18 @@ enum gamepad_physical_location
     GamepadPhysicalLocation_MaxLocations
 };
 
+enum log_color
+{
+    LogColor_CyanInfo,
+    LogColor_YellowWarn,
+    LogColor_ErrorCriticalRed
+};
+
 extern platform_config PlatformConfiguration;
 
 // NOTE(milo): Debug tools
 void PlatformMessageBox(const char* Message, bool Error);
+void PlatformSetLogColor(log_color Color);
 
 // NOTE(milo): Input functions
 bool GamepadIsButtonPressed(i32 GamepadIndex, gamepad_buttons Button);
