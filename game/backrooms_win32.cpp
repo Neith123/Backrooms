@@ -1,6 +1,7 @@
 #include "backrooms_platform.h"
 #include "backrooms_logger.h"
 #include "backrooms_input.h"
+#include "backrooms.h"
 
 #if defined(BACKROOMS_WINDOWS)
 
@@ -96,6 +97,29 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
                 MouseProcessWheel(ZDelta);
             }
         } break;
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYUP: {
+            bool Pressed = (Message == WM_KEYDOWN || Message == WM_SYSKEYDOWN);
+            keyboard_keys Key = (keyboard_keys)WParam;
+		
+            bool IsExtended = (HIWORD(LParam) & KF_EXTENDED) == KF_EXTENDED;
+			
+            if (WParam == VK_MENU) {
+                Key = IsExtended ? KeyboardKey_RightAlt : KeyboardKey_LeftAlt;
+            } else if (WParam == VK_SHIFT) {
+                u32 LeftShift = MapVirtualKey(VK_LSHIFT, MAPVK_VK_TO_VSC);
+                u32 Scancode = ((LParam & (0xFF << 16)) >> 16);
+                Key = Scancode == LeftShift ? KeyboardKey_LeftShift : KeyboardKey_RightShift;
+            } else if (WParam == VK_CONTROL) {
+                Key = IsExtended ? KeyboardKey_RightControl : KeyboardKey_LeftControl;
+            }
+			
+            KeyboardProcessKey(Key, Pressed);
+			
+            return 0;
+        }
         case WM_LBUTTONDOWN:
         case WM_MBUTTONDOWN:
         case WM_RBUTTONDOWN:
@@ -202,6 +226,8 @@ void Win32Create(HINSTANCE Instance)
             LogInfo("Loaded xaudio2_9.dll");
         }
     }
+
+    GameInit();
 }
 
 void XInputUpdate()
@@ -300,6 +326,8 @@ void Win32Update()
 
 void Win32Destroy()
 {
+    GameExit();
+
     PlatformDLLExit(&State.AudioLibrary);
     PlatformDLLExit(&State.InputLibrary);
 
@@ -312,6 +340,8 @@ int main()
     while (PlatformConfiguration.Running) {
         Win32Update();
         XInputUpdate();
+
+        GameUpdate();
     }
     Win32Destroy();
 }

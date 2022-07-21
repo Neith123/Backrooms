@@ -1,5 +1,10 @@
 #include "backrooms_input.h"
 
+struct keyboard_state
+{
+    bool Keys[KeyboardKeys_MaxKeys];
+};
+
 struct gamepad_state
 {
     bool Buttons[GamepadButton_MaxButtons];
@@ -19,8 +24,9 @@ struct mouse_state
 
 struct input_state
 {
-    gamepad_state GamepadState[GAMEPAD_MAX_PLAYERS];
+    keyboard_state KeyboardState;
     mouse_state MouseState;
+    gamepad_state GamepadState[GAMEPAD_MAX_PLAYERS];
 };
 
 static input_state InputState;
@@ -114,4 +120,19 @@ void MouseProcessWheel(i8 Wheel)
 void MouseProcessButton(mouse_buttons Button, bool State)
 {
     InputState.MouseState.Buttons[Button] = State;
+}
+
+bool KeyboardIsKeyDown(keyboard_keys Key)
+{
+    return InputState.KeyboardState.Keys[Key] == true;
+}
+
+bool KeyboardIsKeyUp(keyboard_keys Key)
+{
+    return InputState.KeyboardState.Keys[Key] == false;
+}
+
+void KeyboardProcessKey(keyboard_keys Key, bool State)
+{
+    InputState.KeyboardState.Keys[Key] = State;
 }
