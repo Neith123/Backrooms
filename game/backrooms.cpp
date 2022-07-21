@@ -5,7 +5,7 @@
 
 void GameInit()
 {
-    LogInfo("Game initialised");
+    LogInfo("Game initialised.");
 }
 
 void GameUpdate()
@@ -15,5 +15,5 @@ void GameUpdate()
 
 void GameExit()
 {
-    LogInfo("Game shutdown");
+    LogInfo("Game shutdown.");
 }

@@ -1,6 +1,7 @@
 #include "backrooms_platform.h"
 #include "backrooms_logger.h"
 #include "backrooms_input.h"
+#include "backrooms_audio.h"
 #include "backrooms.h"
 
 #if defined(BACKROOMS_WINDOWS)
@@ -35,8 +36,15 @@ struct game_state
     platform_dynamic_lib AudioLibrary;
 };
 
+struct audio_state
+{
+    IXAudio2* Device;
+    IXAudio2MasteringVoice* MasteringVoice;
+};
+
 platform_config PlatformConfiguration;
 game_state State;
+audio_state AudioState;
 
 f32 Normalize(f32 Input, f32 Min, f32 Max);
 f32 ApplyDeadzone(f32 Value, f32 MaxValue, f32 Deadzone);
@@ -211,7 +219,7 @@ void Win32Create(HINSTANCE Instance)
                 LogCritical("Failed to load XInputGetBatteryInformation function!");
             }
 
-            LogInfo("Loaded xinput1_4.dll");
+            LogInfo("Loaded xinput1_4.dll.");
         }
 
         CODE_BLOCK("XAudio2")
@@ -223,10 +231,11 @@ void Win32Create(HINSTANCE Instance)
                 LogCritical("Failed to load XAudio2Create function!");
             }
 
-            LogInfo("Loaded xaudio2_9.dll");
+            LogInfo("Loaded xaudio2_9.dll.");
         }
     }
 
+    AudioInit();
     GameInit();
 }
 
@@ -327,11 +336,56 @@ void Win32Update()
 void Win32Destroy()
 {
     GameExit();
+    AudioExit();
 
     PlatformDLLExit(&State.AudioLibrary);
     PlatformDLLExit(&State.InputLibrary);
 
     DestroyWindow(State.WindowHandle);
+}
+
+void AudioInit()
+{
+    HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    if (FAILED(hr)) {
+        LogCritical("Failed to initialize COM.");
+    }
+
+    u32 Flags = 0;
+#if defined(_DEBUG)
+    Flags |= XAUDIO2_DEBUG_ENGINE;
+#endif
+
+    hr = XAudio2CreateProc(&AudioState.Device, Flags, XAUDIO2_DEFAULT_PROCESSOR);
+    if (FAILED(hr)) {
+        LogCritical("Failed to initialise XAudio2!");
+    }
+
+#if defined(_DEBUG)
+    XAUDIO2_DEBUG_CONFIGURATION DebugConfig = {};
+	DebugConfig.TraceMask = XAUDIO2_LOG_ERRORS | XAUDIO2_LOG_WARNINGS;
+	DebugConfig.BreakMask = XAUDIO2_LOG_ERRORS;
+    AudioState.Device->SetDebugConfiguration(&DebugConfig);
+#endif
+
+    hr = AudioState.Device->CreateMasteringVoice(&AudioState.MasteringVoice, DEFAULT_AUDIO_CHANNELS, DEFAULT_AUDIO_SAMPLE_RATE, 0, NULL, NULL, AudioCategory_GameMedia);
+    if (FAILED(hr)) {
+        LogCritical("Failed to create XAudio2 mastering voice!");
+    }
+
+    hr = AudioState.Device->StartEngine();
+    if (FAILED(hr)) {
+        LogCritical("Failed to start XAudio2 engine!");
+    }
+
+    LogInfo("Initialised XAudio2.");
+}
+
+void AudioExit()
+{
+    AudioState.MasteringVoice->DestroyVoice();
+    AudioState.Device->StopEngine();
+    AudioState.Device->Release();
 }
 
 int main()
