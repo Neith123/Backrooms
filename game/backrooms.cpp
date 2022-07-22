@@ -34,7 +34,8 @@ void GameInit()
         AudioSourceCreate(&State.TestSource);
         AudioSourceSetLoop(&State.TestSource, true);
         AudioSourceSetVolume(&State.TestSource, 0.3f);
-        AudioSourceLoad(&State.TestSource, "data/sfx/SyncamoreTheme.wav", AudioSourceType_WAV);
+        AudioSourceSetPitch(&State.TestSource, 0.9f);
+        AudioSourceLoad(&State.TestSource, "data/sfx/ambiance0.mp3", AudioSourceType_MP3);
     }
 
     CODE_BLOCK("Pipeline assets")

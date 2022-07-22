@@ -112,7 +112,6 @@ void VideoInit(void* WindowHandle)
 	ImGuiIO& io = ImGui::GetIO();
 	
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     
     ImGui::StyleColorsDark();
 

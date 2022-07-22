@@ -1,0 +1,5 @@
+- Frustum culling in compute shader
+- Occlusion culling? in compute shader
+- Forward+ rendering
+- TAA/FXAA/MSAA
+- Bloom in compute
