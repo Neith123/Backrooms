@@ -44,6 +44,16 @@ struct d3d11_material
     ID3D11DepthStencilState* DState;
 };
 
+struct d3d11_texture
+{
+    ID3D11Texture2D* ColorTexture;
+
+    ID3D11RenderTargetView* RTV;
+    ID3D11DepthStencilView* DSV;
+    ID3D11ShaderResourceView* SRV;
+    ID3D11UnorderedAccessView* UAV;
+};
+
 static d3d11_state State;
 
 const D3D_DRIVER_TYPE DriverTypes[] =
@@ -58,6 +68,7 @@ D3D11_CULL_MODE CullModeToD3D11(rhi_cull_mode Cull);
 D3D11_FILL_MODE FillModeToD3D11(rhi_fill_mode Fill);
 D3D11_COMPARISON_FUNC CompareToD3D11(rhi_comp_op Compare);
 D3D11_TEXTURE_ADDRESS_MODE SamplerAddressToD3D11(rhi_sampler_address Address);
+D3D11_BIND_FLAG TextureUsageToD3D11(rhi_texture_usage Usage);
 
 void VideoInit(void* WindowHandle)
 {
@@ -418,6 +429,182 @@ void SamplerBind(rhi_sampler* Sampler, i32 Binding, rhi_uniform_bind Bind)
     }
 }
 
+void TextureInit(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage)
+{
+    Texture->Cube = false;
+    Texture->Width = Width;
+    Texture->Height = Height;
+    Texture->Format = Format;
+    Texture->Internal = new d3d11_texture();
+
+    D3D11_TEXTURE2D_DESC Desc = {};
+    Desc.Width = Width;
+    Desc.Height = Height;
+    Desc.Format = (DXGI_FORMAT)Format;
+    Desc.ArraySize = 1;
+    Desc.BindFlags = TextureUsageToD3D11(Usage);
+    Desc.SampleDesc.Count = 1;
+    Desc.MipLevels = 1;
+
+    if (FAILED(State.Device->CreateTexture2D(&Desc, NULL, (ID3D11Texture2D**)&((d3d11_texture*)Texture->Internal)->ColorTexture))) {
+        LogCritical("Failed to create texture!");
+    }
+}
+
+void TextureInitCube(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage)
+{
+    Texture->Cube = true;
+    Texture->Width = Width;
+    Texture->Height = Height;
+    Texture->Format = Format;
+    Texture->Internal = new d3d11_texture();
+
+    D3D11_TEXTURE2D_DESC Desc = {};
+    Desc.Width = Width;
+    Desc.Height = Height;
+    Desc.Format = (DXGI_FORMAT)Format;
+    Desc.ArraySize = 6;
+    Desc.BindFlags = TextureUsageToD3D11(Usage);
+    Desc.SampleDesc.Count = 1;
+    Desc.MipLevels = 1;
+    Desc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+    if (FAILED(State.Device->CreateTexture2D(&Desc, NULL, (ID3D11Texture2D**)&((d3d11_texture*)Texture->Internal)->ColorTexture))) {
+        LogCritical("Failed to create texture!");
+    }
+}   
+
+void TextureFree(rhi_texture* Texture)
+{
+    SafeRelease(((d3d11_texture*)Texture->Internal)->UAV);
+    SafeRelease(((d3d11_texture*)Texture->Internal)->DSV);
+    SafeRelease(((d3d11_texture*)Texture->Internal)->SRV);
+    SafeRelease(((d3d11_texture*)Texture->Internal)->RTV);
+    SafeRelease(((d3d11_texture*)Texture->Internal)->ColorTexture);
+    delete Texture->Internal;
+}
+
+void TextureInitRTV(rhi_texture* Texture)
+{
+    if (FAILED(State.Device->CreateRenderTargetView(((d3d11_texture*)Texture->Internal)->ColorTexture, NULL, &((d3d11_texture*)Texture->Internal)->RTV))) {
+        LogCritical("Failed to create render target view!");
+    }
+}
+
+void TextureInitDSV(rhi_texture* Texture)
+{
+    if (FAILED(State.Device->CreateDepthStencilView(((d3d11_texture*)Texture->Internal)->ColorTexture, NULL, &((d3d11_texture*)Texture->Internal)->DSV))) {
+        LogCritical("Failed to create depth stencil view!");
+    }
+}
+
+void TextureInitSRV(rhi_texture* Texture, bool Mips)
+{
+    D3D11_SHADER_RESOURCE_VIEW_DESC Desc = {};
+    Desc.Format = (DXGI_FORMAT)Texture->Format;
+    Desc.ViewDimension = Texture->Cube ? D3D11_SRV_DIMENSION_TEXTURECUBE : D3D11_SRV_DIMENSION_TEXTURE2D;
+    Desc.Texture2D.MipLevels = Mips ? -1 : 1;
+
+    if (FAILED(State.Device->CreateShaderResourceView(((d3d11_texture*)Texture->Internal)->ColorTexture, &Desc, &((d3d11_texture*)Texture->Internal)->SRV))) {
+        LogCritical("Failed to create shader resource view!");
+    }
+
+    if (Mips) {
+        State.DeviceContext->GenerateMips(((d3d11_texture*)Texture->Internal)->SRV);
+    }
+}
+
+void TextureInitUAV(rhi_texture* Texture)
+{
+    D3D11_UNORDERED_ACCESS_VIEW_DESC Desc = {};
+    Desc.Format = (DXGI_FORMAT)Texture->Format;
+    Desc.ViewDimension = Texture->Cube ? D3D11_UAV_DIMENSION_TEXTURE2DARRAY : D3D11_UAV_DIMENSION_TEXTURE2D;
+    Desc.Texture2DArray.ArraySize = Texture->Cube ? 6 : 0;
+
+    if (FAILED(State.Device->CreateUnorderedAccessView(((d3d11_texture*)Texture->Internal)->ColorTexture, &Desc, &((d3d11_texture*)Texture->Internal)->UAV))) {
+        LogCritical("Failed to create unordered access view!");
+    }
+}
+
+void TextureBindRTV(rhi_texture* Texture, rhi_texture* Depth, hmm_vec4 ClearColor)
+{
+    d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
+
+    ID3D11RenderTargetView* BindRTV = Internal->RTV;
+    ID3D11DepthStencilView* BindDSV = nullptr;
+    State.DeviceContext->ClearRenderTargetView(BindRTV, ClearColor.Elements);
+    if (Depth) {
+        BindDSV = ((d3d11_texture*)Depth->Internal)->DSV;
+        State.DeviceContext->ClearDepthStencilView(BindDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    }
+
+    State.DeviceContext->OMSetRenderTargets(1, &BindRTV, BindDSV);
+}
+
+void TextureBindSRV(rhi_texture* Texture, i32 Binding, rhi_uniform_bind Bind)
+{
+    d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
+
+    ID3D11ShaderResourceView* SRV[1] = { nullptr };
+    SRV[0] = Internal->SRV;
+
+    switch (Bind) {
+        case UniformBind_Vertex: {
+            State.DeviceContext->VSSetShaderResources(Binding, 1, SRV);
+            return; 
+        }
+        case UniformBind_Pixel: {
+            State.DeviceContext->PSSetShaderResources(Binding, 1, SRV);
+            return; 
+        }
+        case UniformBind_Compute: {
+            State.DeviceContext->CSSetShaderResources(Binding, 1, SRV);
+            return;
+        }
+    }
+}
+
+void TextureBindUAV(rhi_texture* Texture, i32 Binding)
+{
+    d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
+
+    State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, &Internal->UAV, NULL);
+}
+
+void TextureResetRTV(rhi_texture* Texture)
+{
+    ID3D11RenderTargetView* const RTV[1] = { NULL };
+	ID3D11DepthStencilView* DSV = NULL;
+
+    State.DeviceContext->OMSetRenderTargets(1, RTV, DSV);
+}
+
+void TextureResetSRV(rhi_texture* Texture, i32 Binding, rhi_uniform_bind Bind)
+{
+    ID3D11ShaderResourceView* const SRV[1] = { NULL };
+
+    switch (Bind) {
+        case UniformBind_Vertex: {
+            State.DeviceContext->VSSetShaderResources(Binding, 1, SRV);
+            return; 
+        }
+        case UniformBind_Pixel: {
+            State.DeviceContext->PSSetShaderResources(Binding, 1, SRV);
+            return; 
+        }
+        case UniformBind_Compute: {
+            State.DeviceContext->CSSetShaderResources(Binding, 1, SRV);
+            return;
+        }
+    }
+}
+
+void TextureResetUAV(rhi_texture* Texture, i32 Binding)
+{
+    ID3D11UnorderedAccessView* const UAV[1] = { NULL };
+    State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, UAV, NULL);
+}
+
 void MaterialInit(rhi_material* Material, rhi_material_config Config)
 {
     Material->Config = Config;
@@ -563,6 +750,26 @@ D3D11_TEXTURE_ADDRESS_MODE SamplerAddressToD3D11(rhi_sampler_address Address)
     }
 
     return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_BORDER;
+}
+
+D3D11_BIND_FLAG TextureUsageToD3D11(rhi_texture_usage Usage)
+{
+    switch (Usage) {
+        case TextureUsage_RTV: {
+            return D3D11_BIND_FLAG::D3D11_BIND_RENDER_TARGET;
+        }
+        case TextureUsage_DSV: {
+            return D3D11_BIND_FLAG::D3D11_BIND_DEPTH_STENCIL;
+        }
+        case TextureUsage_SRV: {
+            return D3D11_BIND_FLAG::D3D11_BIND_SHADER_RESOURCE;
+        }
+        case TextureUsage_UAV: {
+            return D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS;
+        }
+    }
+
+    return D3D11_BIND_SHADER_RESOURCE;
 }
 
 #endif
