@@ -1,5 +1,7 @@
 #include "backrooms_forward.h"
 
+#include <imgui/imgui.h>
+
 void ForwardPassInit(forward_pass* Pass)
 {
     TextureInit(&Pass->Output, 1280, 720, TextureFormat_R8G8B8A8_Unorm, TextureUsage_RTV);
@@ -45,6 +47,10 @@ void ForwardPassRender(forward_pass* Pass, frame_graph_scene* Scene)
             VideoDrawIndexed(Primitive.IndexCount, 0);
         }
     }
+
+    VideoImGuiBegin();
+    ImGui::ShowDemoWindow();
+    VideoImGuiEnd();
 }
 
 void ForwardPassResize(forward_pass* Pass, u32 Width, u32 Height)

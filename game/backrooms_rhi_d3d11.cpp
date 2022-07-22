@@ -10,6 +10,9 @@
 #include <string>
 #include <vector>
 #include <stb/stb_image.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_dx11.h>
+#include <imgui/imgui_impl_win32.h>
 
 #define SafeRelease(ptr) if (ptr) ptr->Release()
 
@@ -103,10 +106,34 @@ void VideoInit(void* WindowHandle)
     State.Height = 720;
 
     VideoResize(State.Width, State.Height);
+
+    IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    
+    ImGui::StyleColorsDark();
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+	
+    ImGui_ImplWin32_EnableDpiAwareness();
+	ImGui_ImplWin32_Init(State.Window);
+	ImGui_ImplDX11_Init(State.Device, State.DeviceContext);
 }
 
 void VideoExit()
 {
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
     SafeRelease(State.SwapchainRenderTarget);
     SafeRelease(State.SwapchainBuffer);
     SafeRelease(State.SwapChain);
@@ -202,6 +229,27 @@ void VideoBlitToSwapchain(rhi_texture* Texture)
     d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
 
     State.DeviceContext->CopyResource(State.SwapchainBuffer, Internal->ColorTexture);
+}
+
+void VideoImGuiBegin()
+{   
+    ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+}
+
+void VideoImGuiEnd()
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+	ImGui::Render();
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+	
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+	{
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+	}
 }
 
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage)

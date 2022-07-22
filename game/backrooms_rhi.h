@@ -234,6 +234,8 @@ void VideoBegin();
 void VideoDraw(u32 Count, u32 Start);
 void VideoDrawIndexed(u32 Count, u32 Start);
 void VideoBlitToSwapchain(rhi_texture* Texture);
+void VideoImGuiBegin();
+void VideoImGuiEnd();
 
 // NOTE(milo): Buffer
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage);
