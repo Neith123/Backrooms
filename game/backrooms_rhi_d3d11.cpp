@@ -58,6 +58,14 @@ struct d3d11_texture
     ID3D11UnorderedAccessView* UAV;
 };
 
+struct d3d11_buffer
+{
+    ID3D11Buffer* Buffer;
+    ID3D11ShaderResourceView* SRV;
+    ID3D11UnorderedAccessView* UAV;
+    D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+};
+
 static d3d11_state State;
 
 const D3D_DRIVER_TYPE DriverTypes[] =
@@ -254,6 +262,7 @@ void VideoImGuiEnd()
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage)
 {
     Buffer->Stride = Stride;
+    Buffer->Internal = new d3d11_buffer();
 
     D3D11_BUFFER_DESC BufferCreateInfo = {};
     BufferCreateInfo.Usage = D3D11_USAGE_DEFAULT;
@@ -262,7 +271,7 @@ void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage
     BufferCreateInfo.CPUAccessFlags = 0;
     BufferCreateInfo.MiscFlags = 0;
 
-    HRESULT Result = State.Device->CreateBuffer(&BufferCreateInfo, NULL, (ID3D11Buffer**)&Buffer->Internal);
+    HRESULT Result = State.Device->CreateBuffer(&BufferCreateInfo, NULL, (ID3D11Buffer**)&((d3d11_buffer*)Buffer->Internal)->Buffer);
     if (FAILED(Result)) {
         LogError("Failed to create buffer!");
     }
@@ -270,49 +279,159 @@ void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage
 
 void BufferFree(rhi_buffer* Buffer)
 {
-    ID3D11Buffer* Internal = (ID3D11Buffer*)Buffer->Internal;
-    SafeRelease(Internal);
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+
+    SafeRelease(Internal->SRV);
+    SafeRelease(Internal->UAV);
+    SafeRelease(Internal->Buffer);
+    delete Buffer->Internal;
+}
+
+void BufferInitSRV(rhi_buffer* Buffer)
+{
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+
+    D3D11_BUFFER_DESC Desc;
+    Internal->Buffer->GetDesc(&Desc);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+    SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+    SRVDesc.BufferEx.FirstElement = 0;
+
+    if (Desc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS )
+    {
+        // This is a Raw Buffer
+
+        SRVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+        SRVDesc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
+        SRVDesc.BufferEx.NumElements = Desc.ByteWidth / 4;
+    } 
+	else if (Desc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED )
+    {
+        // This is a Structured Buffer
+
+        SRVDesc.Format = DXGI_FORMAT_UNKNOWN;
+        SRVDesc.BufferEx.NumElements = Desc.ByteWidth / Desc.StructureByteStride;
+    } 
+
+    if (FAILED(State.Device->CreateShaderResourceView(Internal->Buffer, &SRVDesc, &Internal->SRV))) {
+        LogCritical("Failed to create shader resource view!");
+    }
+}
+
+void BufferInitUAV(rhi_buffer* Buffer)
+{
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+
+    D3D11_BUFFER_DESC Desc;
+    Internal->Buffer->GetDesc(&Desc);
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
+    UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    UAVDesc.Buffer.FirstElement = 0;
+
+    if (Desc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS )
+    {
+        // This is a Raw Buffer
+
+        UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS; // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
+        UAVDesc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
+        UAVDesc.Buffer.NumElements = Desc.ByteWidth / 4; 
+    } 
+	else if (Desc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED )
+    {
+        // This is a Structured Buffer
+
+        UAVDesc.Format = DXGI_FORMAT_UNKNOWN;      // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
+        UAVDesc.Buffer.NumElements = Desc.ByteWidth / Desc.StructureByteStride; 
+    } 
+
+    if (FAILED(State.Device->CreateUnorderedAccessView(Internal->Buffer, &UAVDesc, &Internal->UAV))) {
+        LogCritical("Failed to create unordered access view!");
+    }
 }
 
 void BufferUpload(rhi_buffer* Buffer, void* Data)
 {
-    ID3D11Buffer* Internal = (ID3D11Buffer*)Buffer->Internal;
-    State.DeviceContext->UpdateSubresource(Internal, NULL, NULL, Data, NULL, NULL);
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+
+    State.DeviceContext->UpdateSubresource(Internal->Buffer, NULL, NULL, Data, NULL, NULL);
 }
 
 void BufferBindVertex(rhi_buffer* Buffer)
 {
-    ID3D11Buffer* Internal = (ID3D11Buffer*)Buffer->Internal;
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
 
     u32 Stride = Buffer->Stride;
     u32 Offset = 0;
-    State.DeviceContext->IASetVertexBuffers(0, 1, &Internal, &Stride, &Offset);
+    State.DeviceContext->IASetVertexBuffers(0, 1, &Internal->Buffer, &Stride, &Offset);
 }
 
 void BufferBindIndex(rhi_buffer* Buffer)
 {
-    ID3D11Buffer* Internal = (ID3D11Buffer*)Buffer->Internal;
-    State.DeviceContext->IASetIndexBuffer(Internal, DXGI_FORMAT_R32_UINT, 0);
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+    State.DeviceContext->IASetIndexBuffer(Internal->Buffer, DXGI_FORMAT_R32_UINT, 0);
 }
 
 void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_uniform_bind Bind)
 {
-    ID3D11Buffer* Internal = (ID3D11Buffer*)Buffer->Internal;
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+
     switch (Bind)
     {
         case UniformBind_Vertex: {
-            State.DeviceContext->VSSetConstantBuffers(Binding, 1, &Internal);
+            State.DeviceContext->VSSetConstantBuffers(Binding, 1, &Internal->Buffer);
             break;
         }
         case UniformBind_Pixel: {
-            State.DeviceContext->PSSetConstantBuffers(Binding, 1, &Internal);
+            State.DeviceContext->PSSetConstantBuffers(Binding, 1, &Internal->Buffer);
             break;
         }
         case UniformBind_Compute: {
-            State.DeviceContext->CSSetConstantBuffers(Binding, 1, &Internal);
+            State.DeviceContext->CSSetConstantBuffers(Binding, 1, &Internal->Buffer);
             break;
         }
     }
+}
+
+void BufferBindStorage(rhi_buffer* Buffer, i32 Binding)
+{
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+
+    if (Internal->SRV) {
+        State.DeviceContext->CSSetShaderResources(Binding, 1, &Internal->SRV);
+        return;
+    }
+    if (Internal->UAV) {
+        State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, &Internal->UAV, NULL);
+        return;
+    }
+}
+
+void* BufferGetData(rhi_buffer* Buffer)
+{
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+    ID3D11Buffer* OutputBuffer = nullptr;
+
+	D3D11_BUFFER_DESC Desc = {};
+	Internal->Buffer->GetDesc(&Desc);
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    Desc.Usage = D3D11_USAGE_STAGING;
+    Desc.BindFlags = 0;
+    Desc.MiscFlags = 0;
+
+	if (SUCCEEDED(State.Device->CreateBuffer(&Desc, nullptr, &OutputBuffer)))
+	{
+		State.DeviceContext->CopyResource(OutputBuffer, Internal->Buffer);
+
+		void* data;
+		State.DeviceContext->Map(OutputBuffer, 0, D3D11_MAP_READ, 0, &Internal->MappedSubresource);
+		data = Internal->MappedSubresource.pData;
+
+		OutputBuffer->Release();
+
+		return data;
+	}
 }
 
 ID3DBlob* CompileBlob(std::string Source, const char* Profile)
@@ -791,7 +910,7 @@ D3D11_BIND_FLAG BufferUsageToD3D11(rhi_buffer_usage Usage)
             return D3D11_BIND_FLAG::D3D11_BIND_CONSTANT_BUFFER;
         }
         case BufferUsage_Storage: {
-            return D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS;
+            return (D3D11_BIND_FLAG)(D3D11_BIND_FLAG::D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_FLAG::D3D11_BIND_SHADER_RESOURCE);
         }
     }
 

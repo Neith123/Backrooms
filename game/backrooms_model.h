@@ -42,6 +42,8 @@ struct gltf_material
 
 struct instance_data
 {
+    i32 PrimitiveIndex;
+    hmm_vec3 Pad;
     hmm_vec4 BoundingSphere;
     hmm_mat4 Transform;
 };

@@ -268,6 +268,7 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 T
         }
     }
 
+    Primitive.InstanceData.PrimitiveIndex = (u32)Mesh->Primitives.size();
     Primitive.VertexCount = VertexCount;
     Primitive.TriangleCount = Primitive.IndexCount / 3;
     Primitive.VertexBufferSize = VertexBufferSize;
