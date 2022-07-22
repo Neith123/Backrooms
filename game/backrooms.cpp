@@ -5,6 +5,8 @@
 #include "backrooms_audio.h"
 #include "backrooms_rhi.h"
 #include "backrooms_camera.h"
+#include "backrooms_model.h"
+#include "backrooms_frame_graph.h"
 
 struct scene_constant_buffer
 {
@@ -18,26 +20,12 @@ struct game_state
 
     audio_source TestSource;
 
-    rhi_shader Shader;
-    rhi_buffer Buffer;
-    rhi_buffer IndexBuffer;
-    rhi_buffer SceneBuffer;
+    frame_graph FrameGraph;
+    gpu_mesh Helmet;
     noclip_camera Camera;
 };
 
 static game_state State;
-
-static float Vertices[] = {
-    0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-    0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-   -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f,
-   -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-};
-
-static u32 Indices[] = {
-    0, 1, 3,
-    1, 2, 3
-};  
 
 void GameInit()
 {
@@ -47,25 +35,19 @@ void GameInit()
         AudioSourceSetLoop(&State.TestSource, true);
         AudioSourceSetVolume(&State.TestSource, 0.3f);
         AudioSourceLoad(&State.TestSource, "data/sfx/SyncamoreTheme.wav", AudioSourceType_WAV);
-        AudioSourcePlay(&State.TestSource);
     }
 
     CODE_BLOCK("Pipeline assets")
     {
-        ShaderInit(&State.Shader, "data/shaders/triangle/Vertex.hlsl", "data/shaders/triangle/Fragment.hlsl");
-        ShaderBind(&State.Shader);
+        FrameGraphInit(&State.FrameGraph);
 
-        i64 VertexStride = sizeof(float) * 6;
-        BufferInit(&State.Buffer, sizeof(Vertices), VertexStride, BufferUsage_Vertex);
-        BufferUpload(&State.Buffer, Vertices);
-
-        BufferInit(&State.IndexBuffer, sizeof(Indices), 0, BufferUsage_Index);
-        BufferUpload(&State.IndexBuffer, Indices);
-
-        BufferInit(&State.SceneBuffer, sizeof(scene_constant_buffer), 0, BufferUsage_Uniform);
-
+        GpuMeshLoad(&State.Helmet, "data/models/DamagedHelmet.gltf");
         NoClipCameraInit(&State.Camera);
+
+        State.FrameGraph.Scene.Meshes.push_back(State.Helmet);
     }
+
+    AudioSourcePlay(&State.TestSource);
 
     LogInfo("Game initialised.");
 }
@@ -79,30 +61,25 @@ void GameUpdate()
     NoClipCameraInput(&State.Camera, Delta);
     NoClipCameraUpdate(&State.Camera, Delta);
 
-    scene_constant_buffer ConstantBuffer;
-    ConstantBuffer.Projection = State.Camera.Projection;
-    ConstantBuffer.View = State.Camera.View;
+    State.FrameGraph.Scene.Camera.Projection = State.Camera.Projection;
+    State.FrameGraph.Scene.Camera.View = State.Camera.View;
 
-    VideoBegin();
-    ShaderBind(&State.Shader);
-    BufferBindVertex(&State.Buffer);
-    BufferBindIndex(&State.IndexBuffer);
-    BufferUpload(&State.SceneBuffer, &ConstantBuffer);
-    BufferBindUniform(&State.SceneBuffer, 0, UniformBind_Vertex);
-    VideoDrawIndexed(6, 0);
+    FrameGraphUpdate(&State.FrameGraph);
+    FrameGraphRender(&State.FrameGraph);
 }
 
 void GameResize(i32 Width, i32 Height)
 {
     NoClipCameraResize(&State.Camera, Width, Height);
+    if (VideoReady()) {
+        FrameGraphResize(&State.FrameGraph, (u32)Width, (u32)Height);
+    }
 }
 
 void GameExit()
 {
-    BufferFree(&State.SceneBuffer);
-    BufferFree(&State.IndexBuffer);
-    BufferFree(&State.Buffer);
-    ShaderFree(&State.Shader);
+    GpuMeshFree(&State.Helmet);
+    FrameGraphFree(&State.FrameGraph);
 
     AudioSourceStop(&State.TestSource);
     AudioSourceDestroy(&State.TestSource);

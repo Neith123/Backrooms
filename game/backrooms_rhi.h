@@ -20,7 +20,7 @@ enum rhi_texture_format
     TextureFormat_R16G16B16A16_Float = 10,
     TextureFormat_R16G16B16A16_Unorm = 11,
     TextureFormat_R16G16B16A16_Uint = 12,
-    TextureFormat_R16G16B16A16_SNORM = 13,
+    TextureFormat_R16G16B16A16_Snorm = 13,
     TextureFormat_R16G16B16A16_Sint = 14,
     TextureFormat_R32G32_Typeless = 15,
     TextureFormat_R32G32_Float = 16,
@@ -38,13 +38,13 @@ enum rhi_texture_format
     TextureFormat_R8G8B8A8_Unorm = 28,
     TextureFormat_R8G8B8A8_Unorm_SRGB = 29,
     TextureFormat_R8G8B8A8_Uint = 30,
-    TextureFormat_R8G8B8A8_SNORM = 31,
+    TextureFormat_R8G8B8A8_Snorm = 31,
     TextureFormat_R8G8B8A8_Sint = 32,
     TextureFormat_R16G16_Typeless = 33,
     TextureFormat_R16G16_Float = 34,
     TextureFormat_R16G16_Unorm = 35,
     TextureFormat_R16G16_Uint = 36,
-    TextureFormat_R16G16_SNORM = 37,
+    TextureFormat_R16G16_Snorm = 37,
     TextureFormat_R16G16_Sint = 38,
     TextureFormat_R32_Typeless = 39,
     TextureFormat_D32_Float = 40,
@@ -58,19 +58,19 @@ enum rhi_texture_format
     TextureFormat_R8G8_Typeless = 48,
     TextureFormat_R8G8_Unorm = 49,
     TextureFormat_R8G8_Uint = 50,
-    TextureFormat_R8G8_SNORM = 51,
+    TextureFormat_R8G8_Snorm = 51,
     TextureFormat_R8G8_Sint = 52,
     TextureFormat_R16_Typeless = 53,
     TextureFormat_R16_Float = 54,
     TextureFormat_D16_Unorm = 55,
     TextureFormat_R16_Unorm = 56,
     TextureFormat_R16_Uint = 57,
-    TextureFormat_R16_SNORM = 58,
+    TextureFormat_R16_Snorm = 58,
     TextureFormat_R16_Sint = 59,
     TextureFormat_R8_Typeless = 60,
     TextureFormat_R8_Unorm = 61,
     TextureFormat_R8_Uint = 62,
-    TextureFormat_R8_SNORM = 63,
+    TextureFormat_R8_Snorm = 63,
     TextureFormat_R8_Sint = 64,
     TextureFormat_A8_Unorm = 65,
     TextureFormat_R1_Unorm = 66,
@@ -88,10 +88,10 @@ enum rhi_texture_format
     TextureFormat_BC3_Unorm_SRGB = 78,
     TextureFormat_BC4_Typeless = 79,
     TextureFormat_BC4_Unorm = 80,
-    TextureFormat_BC4_SNORM = 81,
+    TextureFormat_BC4_Snorm = 81,
     TextureFormat_BC5_Typeless = 82,
     TextureFormat_BC5_Unorm = 83,
-    TextureFormat_BC5_SNORM = 84,
+    TextureFormat_BC5_Snorm = 84,
     TextureFormat_B5G6R5_Unorm = 85,
     TextureFormat_B5G5R5A1_Unorm = 86,
     TextureFormat_B8G8R8A8_Unorm = 87,
@@ -233,6 +233,7 @@ bool VideoReady();
 void VideoBegin();
 void VideoDraw(u32 Count, u32 Start);
 void VideoDrawIndexed(u32 Count, u32 Start);
+void VideoBlitToSwapchain(rhi_texture* Texture);
 
 // NOTE(milo): Buffer
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage);
@@ -257,15 +258,15 @@ void TextureInit(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format
 void TextureInitCube(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage);
 void TextureFree(rhi_texture* Texture);
 void TextureInitRTV(rhi_texture* Texture);
-void TextureInitDSV(rhi_texture* Texture, rhi_texture_format DepthFormat);
+void TextureInitDSV(rhi_texture* Texture);
 void TextureInitSRV(rhi_texture* Texture, bool Mips);
 void TextureInitUAV(rhi_texture* Texture);
 void TextureBindRTV(rhi_texture* Texture, rhi_texture* Depth, hmm_vec4 ClearColor);
 void TextureBindSRV(rhi_texture* Texture, i32 Binding, rhi_uniform_bind Bind);
 void TextureBindUAV(rhi_texture* Texture, i32 Binding);
-void TextureResetRTV(rhi_texture* Texture);
-void TextureResetSRV(rhi_texture* Texture, i32 Binding, rhi_uniform_bind Bind);
-void TextureResetUAV(rhi_texture* Texture, i32 Binding);
+void TextureResetRTV();
+void TextureResetSRV(i32 Binding, rhi_uniform_bind Bind);
+void TextureResetUAV(i32 Binding);
 
 // NOTE(milo): Material
 void MaterialInit(rhi_material* Material, rhi_material_config Config);

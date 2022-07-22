@@ -1058,6 +1058,16 @@ HMM_INLINE float HMM_PREFIX(DotVec3)(hmm_vec3 VecOne, hmm_vec3 VecTwo)
     return (Result);
 }
 
+COVERAGE(HMM_DistanceVec3, 1)
+HMM_INLINE float HMM_PREFIX(DistanceVec3)(hmm_vec3 VecOne, hmm_vec3 VecTwo)
+{
+    ASSERT_COVERED(HMM_DistanceVec3);
+
+    float Result = HMM_SQRTF(HMM_Power(VecTwo.X - VecOne.X, 2) + HMM_Power(VecTwo.Y - VecOne.Y, 2) + HMM_Power(VecTwo.Z - VecOne.Z, 2));
+
+    return (Result);
+}
+
 COVERAGE(HMM_DotVec4, 1)
 HMM_INLINE float HMM_PREFIX(DotVec4)(hmm_vec4 VecOne, hmm_vec4 VecTwo)
 {

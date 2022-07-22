@@ -12,6 +12,7 @@ typedef float f32;
 typedef double f64;
 
 #define CODE_BLOCK(block)
+#define OFFSET_PTR_BYTES(Type, Pointer, Offset) ((Type*)((u8*)Pointer + (Offset)))
 
 #if defined(_WIN32) 
     #define BACKROOMS_WINDOWS

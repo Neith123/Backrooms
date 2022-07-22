@@ -83,7 +83,7 @@ void VideoInit(void* WindowHandle)
     D3D_FEATURE_LEVEL Levels[] = { D3D_FEATURE_LEVEL_11_0 };
     HRESULT Result = 0;
     for (i32 DriverTypeIndex = 0; DriverTypeIndex < ARRAYSIZE(DriverTypes); DriverTypeIndex++) {
-        Result = D3D11CreateDevice(NULL, DriverTypes[DriverTypeIndex], NULL, Flags, Levels, 1, D3D11_SDK_VERSION, &State.Device, &State.FeatureLevel, &State.DeviceContext);
+        Result = D3D11CreateDevice(NULL, DriverTypes[DriverTypeIndex], NULL, D3D11_CREATE_DEVICE_DEBUG, Levels, 1, D3D11_SDK_VERSION, &State.Device, &State.FeatureLevel, &State.DeviceContext);
 
         if (SUCCEEDED(Result))
             break;
@@ -98,10 +98,8 @@ void VideoInit(void* WindowHandle)
     State.DXGI->GetParent(IID_PPV_ARGS(&State.Adapter));
     State.Adapter->GetParent(IID_PPV_ARGS(&State.Factory));
 
-    RECT Rectangle;
-    GetClientRect(Window, &Rectangle);
-    State.Width = Rectangle.right - Rectangle.left;
-    State.Height = Rectangle.bottom - Rectangle.top;
+    State.Width = 1280;
+    State.Height = 720;
 
     VideoResize(State.Width, State.Height);
 }
@@ -183,10 +181,7 @@ void VideoBegin()
     Viewport.MinDepth = 0.0f;
     Viewport.MaxDepth = 1.0f;
 
-    FLOAT Clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
     State.DeviceContext->RSSetViewports(1, &Viewport);
-    State.DeviceContext->ClearRenderTargetView(State.SwapchainRenderTarget, Clear);
     State.DeviceContext->OMSetRenderTargets(1, &State.SwapchainRenderTarget, NULL);
 }
 
@@ -197,7 +192,15 @@ void VideoDraw(u32 Count, u32 Start)
 
 void VideoDrawIndexed(u32 Count, u32 Start)
 {
+    State.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     State.DeviceContext->DrawIndexed(Count, Start, 0);
+}
+
+void VideoBlitToSwapchain(rhi_texture* Texture)
+{
+    d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
+
+    State.DeviceContext->CopyResource(State.SwapchainBuffer, Internal->ColorTexture);
 }
 
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage)
@@ -528,6 +531,13 @@ void TextureInitUAV(rhi_texture* Texture)
 
 void TextureBindRTV(rhi_texture* Texture, rhi_texture* Depth, hmm_vec4 ClearColor)
 {
+    D3D11_VIEWPORT Viewport = {};
+    Viewport.Width = (FLOAT)State.Width;
+    Viewport.Height = (FLOAT)State.Height;
+    Viewport.MinDepth = 0.0f;
+    Viewport.MaxDepth = 1.0f;
+    State.DeviceContext->RSSetViewports(1, &Viewport);
+
     d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
 
     ID3D11RenderTargetView* BindRTV = Internal->RTV;
@@ -571,7 +581,7 @@ void TextureBindUAV(rhi_texture* Texture, i32 Binding)
     State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, &Internal->UAV, NULL);
 }
 
-void TextureResetRTV(rhi_texture* Texture)
+void TextureResetRTV()
 {
     ID3D11RenderTargetView* const RTV[1] = { NULL };
 	ID3D11DepthStencilView* DSV = NULL;
@@ -579,7 +589,7 @@ void TextureResetRTV(rhi_texture* Texture)
     State.DeviceContext->OMSetRenderTargets(1, RTV, DSV);
 }
 
-void TextureResetSRV(rhi_texture* Texture, i32 Binding, rhi_uniform_bind Bind)
+void TextureResetSRV(i32 Binding, rhi_uniform_bind Bind)
 {
     ID3D11ShaderResourceView* const SRV[1] = { NULL };
 
@@ -599,7 +609,7 @@ void TextureResetSRV(rhi_texture* Texture, i32 Binding, rhi_uniform_bind Bind)
     }
 }
 
-void TextureResetUAV(rhi_texture* Texture, i32 Binding)
+void TextureResetUAV(i32 Binding)
 {
     ID3D11UnorderedAccessView* const UAV[1] = { NULL };
     State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, UAV, NULL);
