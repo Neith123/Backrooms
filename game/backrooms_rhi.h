@@ -12,11 +12,11 @@ enum rhi_buffer_usage
     BufferUsage_Storage
 };
 
-enum rhi_buffer_bind
+enum rhi_uniform_bind
 {
-    BufferBind_Vertex,
-    BufferBind_Pixel,
-    BufferBind_Compute
+    UniformBind_Vertex,
+    UniformBind_Pixel,
+    UniformBind_Compute
 };
 
 enum rhi_fill_mode
@@ -42,6 +42,28 @@ enum rhi_comp_op
     CompareOP_NotEqual,
     CompareOP_GreaterEqual,
     CompareOP_Always
+};
+
+enum rhi_texture_bind
+{
+    TextureBind_RTV,
+    TextureBind_DSV,
+    TextureBind_SRV,
+    TextureBind_UAV
+};
+
+enum rhi_sampler_address
+{
+    SamplerAddress_Wrap,
+    SamplerAddress_Mirror,
+    SamplerAddress_Clamp,
+    SamplerAddress_Border
+};  
+
+struct rhi_sampler
+{
+    rhi_sampler_address Address;
+    void* Internal;
 };
 
 struct rhi_material_config
@@ -85,12 +107,17 @@ void BufferFree(rhi_buffer* Buffer);
 void BufferUpload(rhi_buffer* Buffer, void* Data);
 void BufferBindVertex(rhi_buffer* Buffer);
 void BufferBindIndex(rhi_buffer* Buffer);
-void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_buffer_bind Bind);
+void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_uniform_bind Bind);
 
 // NOTE(milo): Shader
 void ShaderInit(rhi_shader* Shader, const char* V = NULL, const char* P = NULL, const char* C = NULL);
 void ShaderFree(rhi_shader* Shader);
 void ShaderBind(rhi_shader* Shader);
+
+// NOTE(milo): Sampler
+void SamplerInit(rhi_sampler* Sampler, rhi_sampler_address Address);
+void SamplerFree(rhi_sampler* Sampler);
+void SamplerBind(rhi_sampler* Sampler, i32 Binding, rhi_uniform_bind Bind);
 
 // NOTE(milo): Material
 void MaterialInit(rhi_material* Material, rhi_material_config Config);

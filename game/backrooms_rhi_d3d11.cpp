@@ -57,6 +57,7 @@ D3D11_BIND_FLAG BufferUsageToD3D11(rhi_buffer_usage Usage);
 D3D11_CULL_MODE CullModeToD3D11(rhi_cull_mode Cull);
 D3D11_FILL_MODE FillModeToD3D11(rhi_fill_mode Fill);
 D3D11_COMPARISON_FUNC CompareToD3D11(rhi_comp_op Compare);
+D3D11_TEXTURE_ADDRESS_MODE SamplerAddressToD3D11(rhi_sampler_address Address);
 
 void VideoInit(void* WindowHandle)
 {
@@ -232,20 +233,20 @@ void BufferBindIndex(rhi_buffer* Buffer)
     State.DeviceContext->IASetIndexBuffer(Internal, DXGI_FORMAT_R32_UINT, 0);
 }
 
-void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_buffer_bind Bind)
+void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_uniform_bind Bind)
 {
     ID3D11Buffer* Internal = (ID3D11Buffer*)Buffer->Internal;
     switch (Bind)
     {
-        case BufferBind_Vertex: {
+        case UniformBind_Vertex: {
             State.DeviceContext->VSSetConstantBuffers(Binding, 1, &Internal);
             break;
         }
-        case BufferBind_Pixel: {
+        case UniformBind_Pixel: {
             State.DeviceContext->PSSetConstantBuffers(Binding, 1, &Internal);
             break;
         }
-        case BufferBind_Compute: {
+        case UniformBind_Compute: {
             State.DeviceContext->CSSetConstantBuffers(Binding, 1, &Internal);
             break;
         }
@@ -374,6 +375,49 @@ void ShaderBind(rhi_shader* Shader)
     if (Internal->InputLayout) State.DeviceContext->IASetInputLayout(Internal->InputLayout);
 }
 
+void SamplerInit(rhi_sampler* Sampler, rhi_sampler_address Address)
+{
+    Sampler->Address = Address;
+
+    D3D11_SAMPLER_DESC Desc = {};
+    Desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    Desc.AddressU = SamplerAddressToD3D11(Address);
+    Desc.AddressV = Desc.AddressU;
+    Desc.AddressW = Desc.AddressU;
+    Desc.MipLODBias = 0.0f;
+    Desc.MaxAnisotropy = 1;
+    Desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    Desc.MinLOD = 0.0f;
+    Desc.MaxLOD = D3D11_FLOAT32_MAX;
+    
+    if (FAILED(State.Device->CreateSamplerState(&Desc, (ID3D11SamplerState**)Sampler->Internal))) {
+        LogCritical("Failed to create sampler state!");
+    }
+}
+
+void SamplerFree(rhi_sampler* Sampler)
+{
+    ((ID3D11SamplerState*)Sampler->Internal)->Release();
+}
+
+void SamplerBind(rhi_sampler* Sampler, i32 Binding, rhi_uniform_bind Bind)
+{
+    switch (Bind) {
+        case UniformBind_Vertex: {
+            State.DeviceContext->VSSetSamplers(Binding, 1, (ID3D11SamplerState**)&Sampler->Internal);
+            break;
+        }
+        case UniformBind_Pixel: {
+            State.DeviceContext->PSSetSamplers(Binding, 1, (ID3D11SamplerState**)&Sampler->Internal);
+            break;
+        }
+        case UniformBind_Compute: {
+            State.DeviceContext->CSSetSamplers(Binding, 1, (ID3D11SamplerState**)&Sampler->Internal);
+            break;
+        }
+    }
+}
+
 void MaterialInit(rhi_material* Material, rhi_material_config Config)
 {
     Material->Config = Config;
@@ -499,6 +543,26 @@ D3D11_COMPARISON_FUNC CompareToD3D11(rhi_comp_op Compare)
     }
 
     return D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS;
+}
+
+D3D11_TEXTURE_ADDRESS_MODE SamplerAddressToD3D11(rhi_sampler_address Address)
+{
+    switch (Address) {
+        case SamplerAddress_Border: {
+            return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_BORDER;
+        }
+        case SamplerAddress_Clamp: {
+            return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_CLAMP;
+        }
+        case SamplerAddress_Mirror: {
+            return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_MIRROR;
+        }
+        case SamplerAddress_Wrap: {
+            return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_WRAP;
+        }
+    }
+
+    return D3D11_TEXTURE_ADDRESS_MODE::D3D11_TEXTURE_ADDRESS_BORDER;
 }
 
 #endif

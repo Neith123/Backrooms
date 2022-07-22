@@ -45,8 +45,9 @@ void GameInit()
     {
         AudioSourceCreate(&State.TestSource);
         AudioSourceSetLoop(&State.TestSource, true);
+        AudioSourceSetVolume(&State.TestSource, 0.3f);
         AudioSourceLoad(&State.TestSource, "data/sfx/SyncamoreTheme.wav", AudioSourceType_WAV);
-        //AudioSourcePlay(&State.TestSource);
+        AudioSourcePlay(&State.TestSource);
     }
 
     CODE_BLOCK("Pipeline assets")
@@ -87,7 +88,7 @@ void GameUpdate()
     BufferBindVertex(&State.Buffer);
     BufferBindIndex(&State.IndexBuffer);
     BufferUpload(&State.SceneBuffer, &ConstantBuffer);
-    BufferBindUniform(&State.SceneBuffer, 0, BufferBind_Vertex);
+    BufferBindUniform(&State.SceneBuffer, 0, UniformBind_Vertex);
     VideoDrawIndexed(6, 0);
 }
 
