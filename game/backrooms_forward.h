@@ -11,6 +11,7 @@ struct forward_pass
 
     rhi_shader ForwardShader;
     rhi_material ForwardMaterial;
+    rhi_sampler ForwardSampler;
 };
 
 void ForwardPassInit(forward_pass* Pass);

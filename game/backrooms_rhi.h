@@ -256,6 +256,8 @@ void SamplerBind(rhi_sampler* Sampler, i32 Binding, rhi_uniform_bind Bind);
 // NOTE(milo): Texture
 void TextureInit(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage);
 void TextureInitCube(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage);
+void TextureLoad(rhi_texture* Texture, const char* Path);
+void TextureLoadFloat(rhi_texture* Texture, const char* Path);
 void TextureFree(rhi_texture* Texture);
 void TextureInitRTV(rhi_texture* Texture);
 void TextureInitDSV(rhi_texture* Texture);

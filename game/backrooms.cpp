@@ -41,7 +41,7 @@ void GameInit()
     {
         FrameGraphInit(&State.FrameGraph);
 
-        GpuMeshLoad(&State.Helmet, "data/models/DamagedHelmet.gltf");
+        GpuMeshLoad(&State.Helmet, "data/models/Sponza.gltf");
         NoClipCameraInit(&State.Camera);
 
         State.FrameGraph.Scene.Meshes.push_back(State.Helmet);

@@ -15,6 +15,14 @@ struct mesh_vertex
     hmm_vec3 Bitangent;
 };
 
+struct material_data
+{
+    hmm_vec3 AlbedoFactor;
+    float MetallicFactor;
+    float RoughnessFactor;
+    hmm_vec3 Pad;
+};
+
 struct gltf_material
 {
     std::string AlbedoPath;
@@ -24,9 +32,12 @@ struct gltf_material
     bool HasNormalMap;
     bool HasPBRMap;
 
+    material_data MaterialData;
+
     rhi_texture Albedo;
     rhi_texture Normal;
     rhi_texture PBR;
+    rhi_buffer MaterialBuffer;
 };
 
 struct instance_data

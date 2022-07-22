@@ -63,7 +63,7 @@ void* GetAccessorData(cgltf_accessor* Accessor, u32* ComponentSize, u32* Compone
     return OFFSET_PTR_BYTES(void, View->buffer->data, View->offset);
 }
 
-void ProcessPrimitive(cgltf_primitive* GltfPrimitive, u32* PrimitiveIndex, gpu_mesh* Mesh, hmm_mat4 Transform)
+void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 Transform)
 {
     gltf_primitive Primitive;
     Primitive.InstanceData.Transform = Transform;
@@ -148,7 +148,7 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, u32* PrimitiveIndex, gpu_m
         }
     }
 
-    for (u32 TriangleIndex = 0; TriangleIndex < Primitive.IndexCount; TriangleIndex++) {
+    for (u32 TriangleIndex = 0; TriangleIndex < Primitive.IndexCount; TriangleIndex += 3) {
         hmm_vec3 Pos1 = Vertices[Indices[TriangleIndex + 0]].Position;
         hmm_vec3 Pos2 = Vertices[Indices[TriangleIndex + 1]].Position;
         hmm_vec3 Pos3 = Vertices[Indices[TriangleIndex + 2]].Position;
@@ -224,7 +224,49 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, u32* PrimitiveIndex, gpu_m
     BufferInit(&Primitive.InstanceBuffer, sizeof(instance_data), 0, BufferUsage_Uniform);
     BufferUpload(&Primitive.InstanceBuffer, &Primitive.InstanceData);
 
-    // TODO(milo): Materials
+    CODE_BLOCK("Material loading")
+    {
+        if (GltfPrimitive->material)
+        {
+            Primitive.MaterialIndex = (u32)Mesh->Materials.size();
+
+            gltf_material Material = {};
+
+            CODE_BLOCK("Albedo")
+            {
+                std::string AlbedoPath = Mesh->Directory + std::string(GltfPrimitive->material->pbr_metallic_roughness.base_color_texture.texture->image->uri);
+                TextureLoad(&Material.Albedo, AlbedoPath.c_str());
+
+                Material.MaterialData.AlbedoFactor = HMM_Vec3(GltfPrimitive->material->pbr_metallic_roughness.base_color_factor[0], GltfPrimitive->material->pbr_metallic_roughness.base_color_factor[1], GltfPrimitive->material->pbr_metallic_roughness.base_color_factor[2]);
+            }
+
+            CODE_BLOCK("Normal")
+            {
+                if (GltfPrimitive->material->normal_texture.texture) {
+                    Material.HasNormalMap = true;
+                    std::string NormalPath = Mesh->Directory + std::string(GltfPrimitive->material->normal_texture.texture->image->uri);
+                    TextureLoad(&Material.Normal, NormalPath.c_str());
+                }
+            }
+
+            CODE_BLOCK("Metallic Roughness")
+            {
+                if (GltfPrimitive->material->pbr_metallic_roughness.metallic_roughness_texture.texture) {
+                    Material.HasPBRMap = true;
+                    std::string PBRPath = Mesh->Directory + std::string(GltfPrimitive->material->pbr_metallic_roughness.metallic_roughness_texture.texture->image->uri);
+                    TextureLoad(&Material.PBR, PBRPath.c_str());
+
+                    Material.MaterialData.MetallicFactor = GltfPrimitive->material->pbr_metallic_roughness.metallic_factor;
+                    Material.MaterialData.RoughnessFactor = GltfPrimitive->material->pbr_metallic_roughness.roughness_factor;
+                }
+            }
+
+            BufferInit(&Material.MaterialBuffer, sizeof(material_data), 0, BufferUsage_Uniform);
+            BufferUpload(&Material.MaterialBuffer, &Material.MaterialData);
+
+            Mesh->Materials.push_back(Material);
+        }
+    }
 
     Primitive.VertexCount = VertexCount;
     Primitive.TriangleCount = Primitive.IndexCount / 3;
@@ -238,7 +280,7 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, u32* PrimitiveIndex, gpu_m
     Mesh->Primitives.push_back(Primitive);
 }
 
-void ProcessNode(cgltf_node* Node, u32* PrimitiveIndex, gpu_mesh* Mesh)
+void ProcessNode(cgltf_node* Node, gpu_mesh* Mesh)
 {
     if (Node->mesh)
     {
@@ -257,12 +299,12 @@ void ProcessNode(cgltf_node* Node, u32* PrimitiveIndex, gpu_mesh* Mesh)
         }
 
         for (i32 GltfPrimitiveIndex = 0; GltfPrimitiveIndex < Node->mesh->primitives_count; GltfPrimitiveIndex++) {
-            ProcessPrimitive(&Node->mesh->primitives[GltfPrimitiveIndex], PrimitiveIndex, Mesh, Transform);
+            ProcessPrimitive(&Node->mesh->primitives[GltfPrimitiveIndex], Mesh, Transform);
         }
     }
 
     for (i32 ChildrenIndex = 0; ChildrenIndex < Node->children_count; ChildrenIndex++) {
-        ProcessNode(Node->children[ChildrenIndex], PrimitiveIndex, Mesh);
+        ProcessNode(Node->children[ChildrenIndex], Mesh);
     }
 }
 
@@ -277,18 +319,30 @@ void GpuMeshLoad(gpu_mesh* Mesh, const std::string& Path)
     cgltf_scene* Scene = Data->scene;
 
     size_t Position = Path.find_last_of('/');
-    std::string Directory = Path.substr(0, Position);
+    std::string Directory = Path.substr(0, Position + 1);
     Mesh->Directory = Directory;
 
-    u32 PrimitiveIndex = 0;
     for (i32 NodeIndex = 0; NodeIndex < Scene->nodes_count; NodeIndex++)
-        ProcessNode(Scene->nodes[NodeIndex], &PrimitiveIndex, Mesh);
+        ProcessNode(Scene->nodes[NodeIndex], Mesh);
 
     cgltf_free(Data);
 }
 
 void GpuMeshFree(gpu_mesh* Mesh)
 {
+    for (gltf_material Material : Mesh->Materials) {
+        BufferFree(&Material.MaterialBuffer);
+        if (Material.Albedo.Internal) {
+            TextureFree(&Material.Albedo);
+        }
+        if (Material.HasNormalMap) {
+            TextureFree(&Material.Normal);
+        }
+        if (Material.HasPBRMap) {
+            TextureFree(&Material.PBR);
+        }
+    }
+
     for (gltf_primitive Primitive : Mesh->Primitives) {
         BufferFree(&Primitive.IndexBuffer);
         BufferFree(&Primitive.VertexBuffer);

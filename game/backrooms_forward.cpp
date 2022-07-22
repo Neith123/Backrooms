@@ -8,6 +8,7 @@ void ForwardPassInit(forward_pass* Pass)
     TextureInitDSV(&Pass->Depth);
 
     ShaderInit(&Pass->ForwardShader, "data/shaders/forward/Vertex.hlsl", "data/shaders/forward/Fragment.hlsl");
+    SamplerInit(&Pass->ForwardSampler, SamplerAddress_Wrap);
 
     rhi_material_config MaterialConfig;
     MaterialConfig.FrontFaceCCW = true;
@@ -20,6 +21,9 @@ void ForwardPassInit(forward_pass* Pass)
 void ForwardPassRender(forward_pass* Pass, frame_graph_scene* Scene)
 {
     TextureResetRTV();
+    TextureResetSRV(0, UniformBind_Pixel);
+    TextureResetSRV(1, UniformBind_Pixel);
+    TextureResetSRV(2, UniformBind_Pixel);
 
     TextureBindRTV(&Pass->Output, &Pass->Depth, HMM_Vec4(0.1f, 0.2f, 0.3f, 1.0f));
     ShaderBind(&Pass->ForwardShader);
@@ -28,6 +32,13 @@ void ForwardPassRender(forward_pass* Pass, frame_graph_scene* Scene)
 
     for (gpu_mesh Mesh : Scene->Meshes) {
         for (gltf_primitive Primitive : Mesh.Primitives) {
+            gltf_material Material = Mesh.Materials[Primitive.MaterialIndex];
+
+            SamplerBind(&Pass->ForwardSampler, 0, UniformBind_Pixel);
+            TextureBindSRV(&Material.Albedo, 0, UniformBind_Pixel);
+            if (Material.HasNormalMap) TextureBindSRV(&Material.Normal, 1, UniformBind_Pixel);
+            if (Material.HasPBRMap) TextureBindSRV(&Material.PBR, 2, UniformBind_Pixel);
+
             BufferBindVertex(&Primitive.VertexBuffer);
             BufferBindIndex(&Primitive.IndexBuffer);
             BufferBindUniform(&Primitive.InstanceBuffer, 1, UniformBind_Vertex);
@@ -49,6 +60,7 @@ void ForwardPassResize(forward_pass* Pass, u32 Width, u32 Height)
 
 void ForwardPassFree(forward_pass* Pass)
 {
+    SamplerFree(&Pass->ForwardSampler);
     MaterialFree(&Pass->ForwardMaterial);
     ShaderFree(&Pass->ForwardShader);
     TextureFree(&Pass->Depth);

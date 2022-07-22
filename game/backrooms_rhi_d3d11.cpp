@@ -9,6 +9,7 @@
 #include <d3dcompiler.h>
 #include <string>
 #include <vector>
+#include <stb/stb_image.h>
 
 #define SafeRelease(ptr) if (ptr) ptr->Release()
 
@@ -404,7 +405,7 @@ void SamplerInit(rhi_sampler* Sampler, rhi_sampler_address Address)
     Desc.MinLOD = 0.0f;
     Desc.MaxLOD = D3D11_FLOAT32_MAX;
     
-    if (FAILED(State.Device->CreateSamplerState(&Desc, (ID3D11SamplerState**)Sampler->Internal))) {
+    if (FAILED(State.Device->CreateSamplerState(&Desc, (ID3D11SamplerState**)&Sampler->Internal))) {
         LogCritical("Failed to create sampler state!");
     }
 }
@@ -477,6 +478,76 @@ void TextureInitCube(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_fo
     }
 }   
 
+void TextureLoad(rhi_texture* Texture, const char* Path)
+{
+    Texture->Cube = false;
+    Texture->Format = TextureFormat_R8G8B8A8_Unorm;
+    Texture->Internal = new d3d11_texture();
+
+    i32 Channels = 0;
+    stbi_set_flip_vertically_on_load(true);
+    u8* Buffer = stbi_load(Path, &Texture->Width, &Texture->Height, &Channels, STBI_rgb_alpha);
+    if (!Buffer)
+        LogCritical("Failed to load texture file: %s", Path);
+
+    D3D11_TEXTURE2D_DESC Desc = {};
+    Desc.Width = Texture->Width;
+    Desc.Height = Texture->Height;
+    Desc.Format = (DXGI_FORMAT)Texture->Format;
+    Desc.ArraySize = 1;
+    Desc.BindFlags = D3D11_BIND_FLAG::D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_FLAG::D3D11_BIND_RENDER_TARGET;
+    Desc.SampleDesc.Count = 1;
+    Desc.MipLevels = 0;
+    Desc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+    if (FAILED(State.Device->CreateTexture2D(&Desc, NULL, (ID3D11Texture2D**)&((d3d11_texture*)Texture->Internal)->ColorTexture))) {
+        LogCritical("Failed to create texture!");
+    }
+
+    State.DeviceContext->UpdateSubresource(((d3d11_texture*)Texture->Internal)->ColorTexture, 0u, nullptr, Buffer, 4 * Texture->Width, 0u);
+
+    TextureInitSRV(Texture, true);
+
+    stbi_image_free(Buffer);
+}
+
+void TextureLoadFloat(rhi_texture* Texture, const char* Path)
+{
+    u32 ChannelSize = 4 * sizeof(f32);
+
+    Texture->Cube = false;
+    Texture->Format = TextureFormat_R32G32B32A32_Float;
+    Texture->Internal = new d3d11_texture();
+
+    i32 Channels = 0;
+    stbi_set_flip_vertically_on_load(true);
+    f32* Buffer = stbi_loadf(Path, &Texture->Width, &Texture->Height, &Channels, STBI_rgb_alpha);
+    if (!Buffer)
+        LogCritical("Failed to load texture file: %s", Path);
+
+    D3D11_TEXTURE2D_DESC Desc = {};
+    Desc.Width = Texture->Width;
+    Desc.Height = Texture->Height;
+    Desc.Format = (DXGI_FORMAT)Texture->Format;
+    Desc.ArraySize = 1;
+    Desc.BindFlags = D3D11_BIND_FLAG::D3D11_BIND_SHADER_RESOURCE;
+    Desc.SampleDesc.Count = 1;
+    Desc.MipLevels = 1;
+
+    D3D11_SUBRESOURCE_DATA Subresource = {};
+    Subresource.pSysMem = Buffer;
+    Subresource.SysMemPitch = ChannelSize * Texture->Width;
+    Subresource.SysMemSlicePitch = ChannelSize * Texture->Width * Texture->Height;
+
+    if (FAILED(State.Device->CreateTexture2D(&Desc, &Subresource, (ID3D11Texture2D**)&((d3d11_texture*)Texture->Internal)->ColorTexture))) {
+        LogCritical("Failed to create texture!");
+    }
+
+    TextureInitSRV(Texture, false);
+
+    stbi_image_free(Buffer);
+}
+
 void TextureFree(rhi_texture* Texture)
 {
     SafeRelease(((d3d11_texture*)Texture->Internal)->UAV);
@@ -507,6 +578,7 @@ void TextureInitSRV(rhi_texture* Texture, bool Mips)
     Desc.Format = (DXGI_FORMAT)Texture->Format;
     Desc.ViewDimension = Texture->Cube ? D3D11_SRV_DIMENSION_TEXTURECUBE : D3D11_SRV_DIMENSION_TEXTURE2D;
     Desc.Texture2D.MipLevels = Mips ? -1 : 1;
+    Desc.Texture2D.MostDetailedMip = 0;
 
     if (FAILED(State.Device->CreateShaderResourceView(((d3d11_texture*)Texture->Internal)->ColorTexture, &Desc, &((d3d11_texture*)Texture->Internal)->SRV))) {
         LogCritical("Failed to create shader resource view!");
