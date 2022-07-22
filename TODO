@@ -1,5 +1,9 @@
 - Frustum culling in compute shader
 - Occlusion culling? in compute shader
+- ECS, Serializable scenes that can be loaded/saved
 - Forward+ rendering
 - TAA/FXAA/MSAA
 - Bloom in compute
+- SSAO
+- Shadows
+- SSR
