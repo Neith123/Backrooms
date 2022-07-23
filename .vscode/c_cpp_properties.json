@@ -10,7 +10,8 @@
             "defines": [
                 "_DEBUG",
                 "UNICODE",
-                "_UNICODE"
+                "_UNICODE",
+                "GAME_DEBUG"
             ],
             "windowsSdkVersion": "10.0.22000.0",
             "compilerPath": "D:/VS2022/VC/Tools/MSVC/14.30.30705/bin/Hostx64/x64/cl.exe",

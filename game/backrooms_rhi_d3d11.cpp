@@ -88,7 +88,7 @@ void VideoInit(void* WindowHandle)
     State.Window = Window;
 
     u32 Flags = 0;
-#if defined(_DEBUG)
+#ifdef _DEBUG
     Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
@@ -110,8 +110,11 @@ void VideoInit(void* WindowHandle)
     State.DXGI->GetParent(IID_PPV_ARGS(&State.Adapter));
     State.Adapter->GetParent(IID_PPV_ARGS(&State.Factory));
 
-    State.Width = 1280;
-    State.Height = 720;
+    RECT Rectangle;
+    GetClientRect(State.Window, &Rectangle);
+    AdjustWindowRect(&Rectangle, WS_OVERLAPPEDWINDOW, 0);
+    State.Width = Rectangle.right - Rectangle.left;
+    State.Height = Rectangle.bottom - Rectangle.top;
 
     VideoResize(State.Width, State.Height);
 
