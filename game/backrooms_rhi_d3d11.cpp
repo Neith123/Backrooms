@@ -231,6 +231,11 @@ void VideoDrawIndexed(u32 Count, u32 Start)
     State.DeviceContext->DrawIndexed(Count, Start, 0);
 }
 
+void VideoDispatch(u32 X, u32 Y, u32 Z)
+{
+    State.DeviceContext->Dispatch(X, Y, Z);
+}
+
 void VideoBlitToSwapchain(rhi_texture* Texture)
 {
     d3d11_texture* Internal = (d3d11_texture*)Texture->Internal;
@@ -266,10 +271,14 @@ void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage
 
     D3D11_BUFFER_DESC BufferCreateInfo = {};
     BufferCreateInfo.Usage = D3D11_USAGE_DEFAULT;
-    BufferCreateInfo.ByteWidth = (UINT)Size;
+    BufferCreateInfo.ByteWidth = Size;
     BufferCreateInfo.BindFlags = BufferUsageToD3D11(Usage);
     BufferCreateInfo.CPUAccessFlags = 0;
+    BufferCreateInfo.StructureByteStride = Stride;
     BufferCreateInfo.MiscFlags = 0;
+    if (Usage == BufferUsage_Storage) {
+        BufferCreateInfo.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    }
 
     HRESULT Result = State.Device->CreateBuffer(&BufferCreateInfo, NULL, (ID3D11Buffer**)&((d3d11_buffer*)Buffer->Internal)->Buffer);
     if (FAILED(Result)) {
@@ -394,18 +403,16 @@ void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_uniform_bind Bind)
     }
 }
 
-void BufferBindStorage(rhi_buffer* Buffer, i32 Binding)
+void BufferBindSRV(rhi_buffer* Buffer, i32 Binding)
 {
     d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+    State.DeviceContext->CSSetShaderResources(Binding, 1, &Internal->SRV);
+}
 
-    if (Internal->SRV) {
-        State.DeviceContext->CSSetShaderResources(Binding, 1, &Internal->SRV);
-        return;
-    }
-    if (Internal->UAV) {
-        State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, &Internal->UAV, NULL);
-        return;
-    }
+void BufferBindUAV(rhi_buffer* Buffer, i32 Binding)
+{
+    d3d11_buffer* Internal = (d3d11_buffer*)Buffer->Internal;
+    State.DeviceContext->CSSetUnorderedAccessViews(Binding, 1, &Internal->UAV, NULL);
 }
 
 void* BufferGetData(rhi_buffer* Buffer)
@@ -432,6 +439,8 @@ void* BufferGetData(rhi_buffer* Buffer)
 
 		return data;
 	}
+    
+    return NULL;
 }
 
 ID3DBlob* CompileBlob(std::string Source, const char* Profile)
@@ -468,7 +477,7 @@ void ShaderInit(rhi_shader* Shader, const char* V, const char* P, const char* C)
     }
     if (C) {
         CS = CompileBlob(PlatformReadFile(C), "cs_5_0");
-        if (FAILED(State.Device->CreateComputeShader(PS->GetBufferPointer(), PS->GetBufferSize(), NULL, &Internal->CS))) {
+        if (FAILED(State.Device->CreateComputeShader(CS->GetBufferPointer(), CS->GetBufferSize(), NULL, &Internal->CS))) {
             LogCritical("Failed to create compute shader!");
         }
     }

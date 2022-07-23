@@ -233,6 +233,7 @@ bool VideoReady();
 void VideoBegin();
 void VideoDraw(u32 Count, u32 Start);
 void VideoDrawIndexed(u32 Count, u32 Start);
+void VideoDispatch(u32 X, u32 Y, u32 Z);
 void VideoBlitToSwapchain(rhi_texture* Texture);
 void VideoImGuiBegin();
 void VideoImGuiEnd();
@@ -246,7 +247,8 @@ void BufferUpload(rhi_buffer* Buffer, void* Data);
 void BufferBindVertex(rhi_buffer* Buffer);
 void BufferBindIndex(rhi_buffer* Buffer);
 void BufferBindUniform(rhi_buffer* Buffer, i32 Binding, rhi_uniform_bind Bind);
-void BufferBindStorage(rhi_buffer* Buffer, i32 Binding);
+void BufferBindSRV(rhi_buffer* Buffer, i32 Binding);
+void BufferBindUAV(rhi_buffer* Buffer, i32 Binding);
 void* BufferGetData(rhi_buffer* Buffer);
 
 // NOTE(milo): Shader
