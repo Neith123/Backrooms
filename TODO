@@ -1,6 +1,7 @@
-- Frustum culling in compute shader
-- Occlusion culling? in compute shader
 - ECS, Serializable scenes that can be loaded/saved
+- Make Level 0
+- Draw indirect
+- Culling on the GPU
 - Forward+ rendering
 - TAA/FXAA/MSAA
 - Bloom in compute
