@@ -403,6 +403,123 @@ f32 PlatformTimerGet()
     return (f32)((f64)Time / State.Timer.Frequency);
 }
 
+i32 PlatformGetProcessorCount()
+{
+    SYSTEM_INFO Info;
+    GetSystemInfo(&Info);
+    return Info.dwNumberOfProcessors;
+}
+
+void PlatformThreadCreate(PFN_ThreadStart StartFunction, void* Params, bool AutoDetach, platform_thread* Thread)
+{
+    if (!StartFunction) {
+        LogWarn("PlatformThreadCreate called without a start function!");
+        return;
+    }
+
+    Thread->Internal = (void*)CreateThread(0, 0, (LPTHREAD_START_ROUTINE)StartFunction, Params, 0, (DWORD*)&Thread->ThreadID);
+    LogInfo("Starting process on thread id: %#x", Thread->ThreadID);
+    if (!Thread->Internal) {
+        LogError("Failed to create Win32 thread!");
+        return;
+    }
+    if (AutoDetach) {
+        CloseHandle((HANDLE)Thread->Internal);
+    }
+}
+
+void PlatformThreadDestroy(platform_thread* Thread)
+{
+    if (Thread->Internal) {
+        DWORD ExitCode;
+        GetExitCodeThread((HANDLE)Thread->Internal, &ExitCode);
+        CloseHandle((HANDLE)Thread->Internal);
+        Thread->ThreadID = 0;
+    }
+}
+
+void PlatformThreadDetach(platform_thread* Thread)
+{
+    if (Thread->Internal) {
+        CloseHandle((HANDLE)Thread->Internal);
+    }
+}
+
+void PlatformThreadCancel(platform_thread* Thread)
+{
+    if (Thread->Internal) {
+        TerminateThread((HANDLE)Thread->Internal, 0);
+    }
+}
+
+bool PlatformThreadActive(platform_thread* Thread)
+{   
+    if (Thread->Internal) {
+        DWORD ExitCode = WaitForSingleObject((HANDLE)Thread->Internal, 0);
+        if (ExitCode == WAIT_TIMEOUT) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void PlatformThreadSleep(platform_thread* Thread, u64 Miliseconds)
+{
+    Sleep(Miliseconds);
+}
+
+u64 PlatformGetThreadID()
+{
+    return (u64)GetCurrentThreadId();
+}
+
+void PlatformMutexCreate(platform_mutex* Mutex)
+{
+    Mutex->Internal = (void*)CreateMutex(0, 0, 0);
+    if (!Mutex->Internal) {
+        LogError("Failed to create mutex!");
+        return;
+    }
+}
+
+void PlatformMutexDestroy(platform_mutex* Mutex)
+{
+    if (Mutex->Internal) {
+        CloseHandle((HANDLE)Mutex->Internal);
+    }
+}
+
+bool PlatformMutexLock(platform_mutex* Mutex)
+{
+    if (!Mutex->Internal) {
+        return false;
+    }
+
+    DWORD Result = WaitForSingleObject((HANDLE)Mutex->Internal, INFINITE);
+    switch (Result) {
+        case WAIT_OBJECT_0: {
+            return true;
+        }
+        case WAIT_ABANDONED: {
+            LogError("Mutex lock failed.");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool PlatformMutexUnlock(platform_mutex* Mutex)
+{
+    if (!Mutex->Internal) {
+        return false;
+    }
+    
+    BOOL Result = ReleaseMutex((HANDLE)Mutex->Internal);
+    return Result != 0;
+}   
+
 void AudioInit()
 {
     HRESULT Result = CoInitializeEx(NULL, COINIT_MULTITHREADED);

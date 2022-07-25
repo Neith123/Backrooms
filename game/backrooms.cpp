@@ -8,6 +8,8 @@
 #include "backrooms_model.h"
 #include "backrooms_frame_graph.h"
 
+#include <future>
+
 struct scene_constant_buffer
 {
     hmm_mat4 View;
@@ -29,24 +31,20 @@ static game_state State;
 
 void GameInit()
 {
-    CODE_BLOCK("Test Audio")
-    {
-        AudioSourceCreate(&State.TestSource);
-        AudioSourceSetLoop(&State.TestSource, true);
-        AudioSourceSetVolume(&State.TestSource, 0.3f);
-        AudioSourceSetPitch(&State.TestSource, 0.9f);
-        AudioSourceLoad(&State.TestSource, "data/sfx/ambiance0.mp3", AudioSourceType_MP3);
-    }
+    AudioSourceCreate(&State.TestSource);
+    AudioSourceSetLoop(&State.TestSource, true);
+    AudioSourceSetVolume(&State.TestSource, 0.3f);
+    AudioSourceSetPitch(&State.TestSource, 0.9f);
 
-    CODE_BLOCK("Pipeline assets")
-    {
-        FrameGraphInit(&State.FrameGraph);
+    auto AudioLoad = std::async(std::launch::async, AudioSourceLoad, &State.TestSource, "data/sfx/ambiance0.mp3", AudioSourceType_MP3);
+    auto MeshLoad = std::async(std::launch::async, GpuMeshLoad, &State.Helmet, "data/models/DamagedHelmet.gltf");
 
-        GpuMeshLoad(&State.Helmet, "data/models/DamagedHelmet.gltf");
-        NoClipCameraInit(&State.Camera);
+    AudioLoad.wait();
+    MeshLoad.wait();
 
-        State.FrameGraph.Scene.Meshes.push_back(State.Helmet);
-    }
+    FrameGraphInit(&State.FrameGraph);
+    NoClipCameraInit(&State.Camera);
+    State.FrameGraph.Scene.Meshes.push_back(State.Helmet);
 
     AudioSourcePlay(&State.TestSource);
 

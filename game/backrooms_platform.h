@@ -4,6 +4,8 @@
 
 #include <string>
 
+typedef u32 (*PFN_ThreadStart)(void*);
+
 struct platform_config
 {
     bool Running;
@@ -18,6 +20,17 @@ struct platform_dynamic_lib
     const char* Path;
 };
 
+struct platform_thread
+{
+    void* Internal;
+    u64 ThreadID;
+};
+
+struct platform_mutex
+{
+    void* Internal;
+};
+
 enum log_color
 {
     LogColor_CyanInfo,
@@ -27,18 +40,34 @@ enum log_color
 
 extern platform_config PlatformConfiguration;
 
-// NOTE(milo): Debug tools
+//~ NOTE(milo): Debug tools
 void PlatformMessageBox(const char* Message, bool Error);
 void PlatformSetLogColor(log_color Color);
 
-// NOTE(milo): File IO
+//~ NOTE(milo): File IO
 std::string PlatformReadFile(const char* Path);
 
-// NOTE(milo): DLL
+//~ NOTE(milo): DLL
 void PlatformDLLInit(platform_dynamic_lib* Library, const char* Path);
 void PlatformDLLExit(platform_dynamic_lib* Library);
 void* PlatformDLLGet(platform_dynamic_lib* Library, const char* FunctionName);
 
-// NOTE(milo): Timer
+//~ NOTE(milo): Timer
 void PlatformTimerInit();
 f32 PlatformTimerGet();
+
+//~ NOTE(milo): Thread
+i32 PlatformGetProcessorCount();
+u64 PlatformGetThreadID();
+void PlatformThreadCreate(PFN_ThreadStart StartFunction, void* Params, bool AutoDetach, platform_thread* Thread);
+void PlatformThreadDestroy(platform_thread* Thread);
+void PlatformThreadDetach(platform_thread* Thread);
+void PlatformThreadCancel(platform_thread* Thread);
+bool PlatformThreadActive(platform_thread* Thread);
+void PlatformThreadSleep(platform_thread* Thread, u64 Miliseconds);
+
+//~ NOTE(milo): Mutex
+void PlatformMutexCreate(platform_mutex* Mutex);
+void PlatformMutexDestroy(platform_mutex* Mutex);
+bool PlatformMutexLock(platform_mutex* Mutex);
+bool PlatformMutexUnlock(platform_mutex* Mutex);
