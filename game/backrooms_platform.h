@@ -62,6 +62,7 @@ u64 PlatformGetThreadID();
 void PlatformThreadCreate(PFN_ThreadStart StartFunction, void* Params, bool AutoDetach, platform_thread* Thread);
 void PlatformThreadDestroy(platform_thread* Thread);
 void PlatformThreadDetach(platform_thread* Thread);
+void PlatformThreadWait(platform_thread* Thread);
 void PlatformThreadCancel(platform_thread* Thread);
 bool PlatformThreadActive(platform_thread* Thread);
 void PlatformThreadSleep(platform_thread* Thread, u64 Miliseconds);

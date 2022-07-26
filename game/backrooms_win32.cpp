@@ -445,6 +445,11 @@ void PlatformThreadDetach(platform_thread* Thread)
     }
 }
 
+void PlatformThreadWait(platform_thread* Thread)
+{
+    WaitForSingleObject((HANDLE)Thread->Internal, INFINITE);
+}
+
 void PlatformThreadCancel(platform_thread* Thread)
 {
     if (Thread->Internal) {

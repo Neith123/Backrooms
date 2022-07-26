@@ -190,6 +190,14 @@ struct rhi_sampler
     void* Internal;
 };
 
+struct rhi_image
+{
+    void* Data;
+    i32 Width;
+    i32 Height;
+    bool Float;
+};
+
 struct rhi_texture
 {
     void* Internal;
@@ -224,7 +232,7 @@ struct rhi_shader
     void* Internal;
 };
 
-// NOTE(milo): Video
+//~ NOTE(milo): Video
 void VideoInit(void* WindowHandle);
 void VideoExit();
 void VideoPresent();
@@ -238,7 +246,7 @@ void VideoBlitToSwapchain(rhi_texture* Texture);
 void VideoImGuiBegin();
 void VideoImGuiEnd();
 
-// NOTE(milo): Buffer
+//~ NOTE(milo): Buffer
 void BufferInit(rhi_buffer* Buffer, i64 Size, i64 Stride, rhi_buffer_usage Usage);
 void BufferFree(rhi_buffer* Buffer);
 void BufferInitSRV(rhi_buffer* Buffer);
@@ -251,21 +259,27 @@ void BufferBindSRV(rhi_buffer* Buffer, i32 Binding);
 void BufferBindUAV(rhi_buffer* Buffer, i32 Binding);
 void* BufferGetData(rhi_buffer* Buffer);
 
-// NOTE(milo): Shader
+//~ NOTE(milo): Shader
 void ShaderInit(rhi_shader* Shader, const char* V = NULL, const char* P = NULL, const char* C = NULL);
 void ShaderFree(rhi_shader* Shader);
 void ShaderBind(rhi_shader* Shader);
 
-// NOTE(milo): Sampler
+//~ NOTE(milo): Sampler
 void SamplerInit(rhi_sampler* Sampler, rhi_sampler_address Address);
 void SamplerFree(rhi_sampler* Sampler);
 void SamplerBind(rhi_sampler* Sampler, i32 Binding, rhi_uniform_bind Bind);
 
-// NOTE(milo): Texture
+//~ NOTE(milo): Image
+void ImageLoad(rhi_image* Image, const char* Path);
+void ImageLoadFloat(rhi_image* Image, const char* Path);
+void ImageFree(rhi_image* Image);
+
+//~ NOTE(milo): Texture
 void TextureInit(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage);
 void TextureInitCube(rhi_texture* Texture, i32 Width, i32 Height, rhi_texture_format Format, rhi_texture_usage Usage);
-void TextureLoad(rhi_texture* Texture, const char* Path);
-void TextureLoadFloat(rhi_texture* Texture, const char* Path);
+void TextureLoad(rhi_texture* Texture, const char* Path); // NOTE(milo): Deprecated
+void TextureLoadFloat(rhi_texture* Texture, const char* Path); // NOTE(milo): Deprecated
+void TextureInitFromImage(rhi_texture* Texture, rhi_image* Image);
 void TextureFree(rhi_texture* Texture);
 void TextureInitRTV(rhi_texture* Texture);
 void TextureInitDSV(rhi_texture* Texture);
@@ -278,7 +292,7 @@ void TextureResetRTV();
 void TextureResetSRV(i32 Binding, rhi_uniform_bind Bind);
 void TextureResetUAV(i32 Binding);
 
-// NOTE(milo): Material
+//~ NOTE(milo): Material
 void MaterialInit(rhi_material* Material, rhi_material_config Config);
 void MaterialFree(rhi_material* Material);
 void MaterialBind(rhi_material* Material);

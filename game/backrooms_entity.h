@@ -42,13 +42,13 @@ struct scene
     u32 EntityCount;
 };
 
-// TODO(milo): Implement
+//~ NOTE(milo): Transform
 void TransformInit(transform* Transform);
 void TransformSetPosition(transform* Transform, hmm_vec3 Translation);
 void TransformSetRotation(transform* Transform, hmm_quaternion Rotation);
 void TransformSetScale(transform* Transform, hmm_vec3 Scale);
 void TransformUpdate(transform* Transform);
 
-// Serialise/Deserialise
+//~ NOTE(milo): Scene serialisation
 void SerialiseScene(scene* Scene, const std::string& Path); 
 void DeserialiseScene(scene* Scene, const std::string& Path);

@@ -1,8 +1,10 @@
 #include "backrooms_model.h"
+#include "backrooms_platform.h"
 
 #include <cgltf/cgltf.h>
 #include <assert.h>
 #include <stdio.h>
+#include <future>
 
 #define CGLTFCall(Call) do { cgltf_result Result = (Call); assert(Result == cgltf_result_success); } while(0)
 
@@ -11,6 +13,27 @@ struct aabb
     hmm_vec3 Min;
     hmm_vec3 Max;
 };
+
+u32 MeshLoadAlbedo(void* Parameter)
+{
+    gltf_material* Material = (gltf_material*)Parameter;
+    ImageLoad(&Material->AlbedoImage, Material->AlbedoPath.c_str());
+    return 1;
+}
+
+u32 MeshLoadNormal(void* Parameter)
+{
+    gltf_material* Material = (gltf_material*)Parameter;
+    ImageLoad(&Material->NormalImage, Material->NormalPath.c_str());
+    return 1;
+}
+
+u32 MeshLoadPBR(void* Parameter)
+{
+    gltf_material* Material = (gltf_material*)Parameter;
+    ImageLoad(&Material->PBRImage, Material->PBRPath.c_str());
+    return 1;
+}
 
 u32 CGLTFComponentSize(cgltf_component_type Type)
 {
@@ -229,14 +252,16 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 T
         if (GltfPrimitive->material)
         {
             Primitive.MaterialIndex = (u32)Mesh->Materials.size();
-
             gltf_material Material = {};
+
+            std::future<void> AlbedoFuture;
+            std::future<void> NormalFuture;
+            std::future<void> PBRFuture;
 
             CODE_BLOCK("Albedo")
             {
                 std::string AlbedoPath = Mesh->Directory + std::string(GltfPrimitive->material->pbr_metallic_roughness.base_color_texture.texture->image->uri);
-                TextureLoad(&Material.Albedo, AlbedoPath.c_str());
-
+                Material.AlbedoPath = AlbedoPath;
                 Material.MaterialData.AlbedoFactor = HMM_Vec3(GltfPrimitive->material->pbr_metallic_roughness.base_color_factor[0], GltfPrimitive->material->pbr_metallic_roughness.base_color_factor[1], GltfPrimitive->material->pbr_metallic_roughness.base_color_factor[2]);
             }
 
@@ -245,7 +270,7 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 T
                 if (GltfPrimitive->material->normal_texture.texture) {
                     Material.HasNormalMap = true;
                     std::string NormalPath = Mesh->Directory + std::string(GltfPrimitive->material->normal_texture.texture->image->uri);
-                    TextureLoad(&Material.Normal, NormalPath.c_str());
+                    Material.NormalPath = NormalPath;
                 }
             }
 
@@ -254,10 +279,39 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 T
                 if (GltfPrimitive->material->pbr_metallic_roughness.metallic_roughness_texture.texture) {
                     Material.HasPBRMap = true;
                     std::string PBRPath = Mesh->Directory + std::string(GltfPrimitive->material->pbr_metallic_roughness.metallic_roughness_texture.texture->image->uri);
-                    TextureLoad(&Material.PBR, PBRPath.c_str());
-
+                    Material.PBRPath = PBRPath;
                     Material.MaterialData.MetallicFactor = GltfPrimitive->material->pbr_metallic_roughness.metallic_factor;
                     Material.MaterialData.RoughnessFactor = GltfPrimitive->material->pbr_metallic_roughness.roughness_factor;
+                }
+            }
+
+            CODE_BLOCK("Multithreaded texture loading")
+            {
+                AlbedoFuture = std::async(std::launch::async, ImageLoad, &Material.AlbedoImage, Material.AlbedoPath.c_str());
+                if (Material.HasNormalMap) {
+                    NormalFuture = std::async(std::launch::async, ImageLoad, &Material.NormalImage, Material.NormalPath.c_str());
+                }
+                if (Material.HasPBRMap) {
+                    PBRFuture = std::async(std::launch::async, ImageLoad, &Material.PBRImage, Material.PBRPath.c_str());
+                }
+
+                AlbedoFuture.wait();
+                NormalFuture.wait();
+                PBRFuture.wait();
+            }
+
+            CODE_BLOCK("Upload textures")
+            {
+                TextureInitFromImage(&Material.Albedo, &Material.AlbedoImage);
+                ImageFree(&Material.AlbedoImage);
+
+                if (Material.HasNormalMap) {
+                    TextureInitFromImage(&Material.Normal, &Material.NormalImage);
+                    ImageFree(&Material.NormalImage);
+                }
+                if (Material.HasPBRMap) {
+                    TextureInitFromImage(&Material.PBR, &Material.PBRImage);
+                    ImageFree(&Material.PBRImage);
                 }
             }
 

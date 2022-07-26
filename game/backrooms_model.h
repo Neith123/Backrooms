@@ -34,6 +34,10 @@ struct gltf_material
 
     material_data MaterialData;
 
+    rhi_image AlbedoImage;
+    rhi_image NormalImage;
+    rhi_image PBRImage;
+
     rhi_texture Albedo;
     rhi_texture Normal;
     rhi_texture PBR;

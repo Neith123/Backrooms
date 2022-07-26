@@ -30,12 +30,14 @@ struct audio_source
         drflac* Flac;
     } Loaders;
 
-    void* BackendData; // IXAudio2SourceVoice
+    void* BackendData;
 };
 
+//~ NOTE(milo): Audio system
 void AudioInit();
 void AudioExit();
 
+//~ NOTE(milo): Audio source
 void AudioSourceCreate(audio_source* Source);
 void AudioSourceLoad(audio_source* Source, const char* Path, audio_source_type Type);
 void AudioSourcePlay(audio_source* Source);
