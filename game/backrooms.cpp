@@ -36,11 +36,8 @@ void GameInit()
     AudioSourceSetVolume(&State.TestSource, 0.3f);
     AudioSourceSetPitch(&State.TestSource, 0.9f);
 
-    auto AudioLoad = std::async(std::launch::async, AudioSourceLoad, &State.TestSource, "data/sfx/ambiance0.mp3", AudioSourceType_MP3);
-    auto MeshLoad = std::async(std::launch::async, GpuMeshLoad, &State.Helmet, "data/models/DamagedHelmet.gltf");
-
-    AudioLoad.wait();
-    MeshLoad.wait();
+    AudioSourceLoad(&State.TestSource, "data/sfx/ambiance0.mp3", AudioSourceType_MP3);
+    GpuMeshLoad(&State.Helmet, "data/models/Sponza.gltf");
 
     FrameGraphInit(&State.FrameGraph);
     NoClipCameraInit(&State.Camera);

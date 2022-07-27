@@ -196,6 +196,7 @@ struct rhi_image
     i32 Width;
     i32 Height;
     bool Float;
+    const char* Path;
 };
 
 struct rhi_texture

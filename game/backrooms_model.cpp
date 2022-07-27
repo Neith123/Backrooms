@@ -254,10 +254,6 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 T
             Primitive.MaterialIndex = (u32)Mesh->Materials.size();
             gltf_material Material = {};
 
-            std::future<void> AlbedoFuture;
-            std::future<void> NormalFuture;
-            std::future<void> PBRFuture;
-
             CODE_BLOCK("Albedo")
             {
                 std::string AlbedoPath = Mesh->Directory + std::string(GltfPrimitive->material->pbr_metallic_roughness.base_color_texture.texture->image->uri);
@@ -285,34 +281,28 @@ void ProcessPrimitive(cgltf_primitive* GltfPrimitive, gpu_mesh* Mesh, hmm_mat4 T
                 }
             }
 
-            CODE_BLOCK("Multithreaded texture loading")
+            CODE_BLOCK("Texture loading")
             {
-                AlbedoFuture = std::async(std::launch::async, ImageLoad, &Material.AlbedoImage, Material.AlbedoPath.c_str());
+                ImageLoad(&Material.AlbedoImage, Material.AlbedoPath.c_str());
                 if (Material.HasNormalMap) {
-                    NormalFuture = std::async(std::launch::async, ImageLoad, &Material.NormalImage, Material.NormalPath.c_str());
+                    ImageLoad(&Material.NormalImage, Material.NormalPath.c_str());
                 }
                 if (Material.HasPBRMap) {
-                    PBRFuture = std::async(std::launch::async, ImageLoad, &Material.PBRImage, Material.PBRPath.c_str());
+                    ImageLoad(&Material.PBRImage, Material.PBRPath.c_str());
                 }
-
-                AlbedoFuture.wait();
-                NormalFuture.wait();
-                PBRFuture.wait();
             }
 
             CODE_BLOCK("Upload textures")
             {
                 TextureInitFromImage(&Material.Albedo, &Material.AlbedoImage);
-                ImageFree(&Material.AlbedoImage);
-
-                if (Material.HasNormalMap) {
+                if (Material.HasNormalMap) 
                     TextureInitFromImage(&Material.Normal, &Material.NormalImage);
-                    ImageFree(&Material.NormalImage);
-                }
-                if (Material.HasPBRMap) {
+                if (Material.HasPBRMap)
                     TextureInitFromImage(&Material.PBR, &Material.PBRImage);
-                    ImageFree(&Material.PBRImage);
-                }
+
+                ImageFree(&Material.AlbedoImage);
+                if (Material.HasNormalMap) ImageFree(&Material.NormalImage);
+                if (Material.HasPBRMap) ImageFree(&Material.PBRImage);
             }
 
             BufferInit(&Material.MaterialBuffer, sizeof(material_data), 0, BufferUsage_Uniform);
